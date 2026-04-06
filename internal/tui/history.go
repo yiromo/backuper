@@ -245,6 +245,7 @@ func (m HistoryModel) viewFilter() string {
 func (m *HistoryModel) resize(w, h int) HistoryModel {
 	m.width = w
 	m.height = h
+	m.table.SetRows(nil)
 	m.table.SetColumns(historyColumns(w))
 	m.table.SetHeight(h - 4)
 	m.table.SetRows(m.buildRows(w))

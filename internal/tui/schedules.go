@@ -276,6 +276,7 @@ func (m SchedulesModel) viewDelete() string {
 func (m *SchedulesModel) resize(w, h int) SchedulesModel {
 	m.width = w
 	m.height = h
+	m.table.SetRows(nil)
 	m.table.SetColumns(schedulesColumns(w))
 	m.table.SetHeight(h - 4)
 	m.refreshTable()

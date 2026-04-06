@@ -126,6 +126,7 @@ func (m DashboardModel) View() string {
 func (m *DashboardModel) resize(w, h int) DashboardModel {
 	m.width = w
 	m.height = h
+	m.table.SetRows(nil)
 	m.table.SetColumns(dashboardColumns(w))
 	m.table.SetHeight(h - 4)
 	m.table.SetRows(m.buildRows(w))

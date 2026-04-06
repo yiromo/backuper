@@ -305,6 +305,7 @@ func (m TargetsModel) viewDelete() string {
 func (m *TargetsModel) resize(w, h int) TargetsModel {
 	m.width = w
 	m.height = h
+	m.table.SetRows(nil)
 	m.table.SetColumns(targetsColumns(w))
 	m.table.SetHeight(h - 4)
 	m.table.SetRows(m.buildRows(w))
