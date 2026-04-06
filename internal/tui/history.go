@@ -51,22 +51,41 @@ func newHistory(app *App) HistoryModel {
 }
 
 func historyColumns(width int) []table.Column {
-	tsW := 18
-	tgtW := 18
-	dstW := 18
-	statusW := 8
-	sizeW := 10
-	durW := width - tsW - tgtW - dstW - statusW - sizeW - 10
-	if durW < 8 {
-		durW = 8
+	if width >= 80 {
+		tsW := 18
+		tgtW := 18
+		dstW := 18
+		statusW := 8
+		sizeW := 10
+		durW := width - tsW - tgtW - dstW - statusW - sizeW - 10
+		if durW < 8 {
+			durW = 8
+		}
+		return []table.Column{
+			{Title: "Timestamp", Width: tsW},
+			{Title: "Target", Width: tgtW},
+			{Title: "Destination", Width: dstW},
+			{Title: "Status", Width: statusW},
+			{Title: "Size", Width: sizeW},
+			{Title: "Duration", Width: durW},
+		}
+	} else if width >= 60 {
+		return []table.Column{
+			{Title: "Timestamp", Width: 18},
+			{Title: "Target", Width: 18},
+			{Title: "Status", Width: 8},
+			{Title: "Duration", Width: width - 52},
+		}
+	} else if width >= 40 {
+		return []table.Column{
+			{Title: "Timestamp", Width: 18},
+			{Title: "Status", Width: 8},
+			{Title: "Duration", Width: width - 34},
+		}
 	}
 	return []table.Column{
-		{Title: "Timestamp", Width: tsW},
-		{Title: "Target", Width: tgtW},
-		{Title: "Destination", Width: dstW},
-		{Title: "Status", Width: statusW},
-		{Title: "Size", Width: sizeW},
-		{Title: "Duration", Width: durW},
+		{Title: "Timestamp", Width: 18},
+		{Title: "Status", Width: width - 26},
 	}
 }
 
@@ -104,7 +123,7 @@ func (m HistoryModel) updateTable(msg tea.Msg) (HistoryModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case historyLoadedMsg:
 		m.records = msg.records
-		m.table.SetRows(m.buildRows())
+		m.table.SetRows(m.buildRows(m.width))
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -228,11 +247,11 @@ func (m *HistoryModel) resize(w, h int) HistoryModel {
 	m.height = h
 	m.table.SetColumns(historyColumns(w))
 	m.table.SetHeight(h - 4)
-	m.table.SetRows(m.buildRows())
+	m.table.SetRows(m.buildRows(w))
 	return *m
 }
 
-func (m HistoryModel) buildRows() []table.Row {
+func (m HistoryModel) buildRows(width int) []table.Row {
 	var rows []table.Row
 	for _, r := range m.records {
 		status := statusSuccess("ok")
@@ -243,14 +262,34 @@ func (m HistoryModel) buildRows() []table.Row {
 		if r.DurationMs > 60000 {
 			dur = fmt.Sprintf("%.1fm", float64(r.DurationMs)/60000)
 		}
-		rows = append(rows, table.Row{
-			r.CreatedAt.Format("2006-01-02 15:04"),
-			r.Target,
-			r.Destination,
-			status,
-			humanBytes(r.SizeBytes),
-			dur,
-		})
+		if width >= 80 {
+			rows = append(rows, table.Row{
+				r.CreatedAt.Format("2006-01-02 15:04"),
+				r.Target,
+				r.Destination,
+				status,
+				humanBytes(r.SizeBytes),
+				dur,
+			})
+		} else if width >= 60 {
+			rows = append(rows, table.Row{
+				r.CreatedAt.Format("2006-01-02 15:04"),
+				r.Target,
+				status,
+				dur,
+			})
+		} else if width >= 40 {
+			rows = append(rows, table.Row{
+				r.CreatedAt.Format("2006-01-02 15:04"),
+				status,
+				dur,
+			})
+		} else {
+			rows = append(rows, table.Row{
+				r.CreatedAt.Format("2006-01-02 15:04"),
+				status,
+			})
+		}
 	}
 	return rows
 }

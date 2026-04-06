@@ -93,8 +93,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
-		bodyW := msg.Width - 4 // horizontal padding in renderBody
-		bodyH := msg.Height - 3
+
+		vf := styleApp.GetVerticalFrameSize()   // border + padding
+		hf := styleApp.GetHorizontalFrameSize() // border + padding
+
+		bodyW := msg.Width - hf
+		bodyH := msg.Height - 2 - vf
+
 		a.dashboard = a.dashboard.resize(bodyW, bodyH)
 		a.targets = a.targets.resize(bodyW, bodyH)
 		a.schedules = a.schedules.resize(bodyW, bodyH)

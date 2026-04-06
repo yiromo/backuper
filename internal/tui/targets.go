@@ -54,33 +54,67 @@ func newTargets(app *App) TargetsModel {
 }
 
 func targetsColumns(width int) []table.Column {
-	nameW := 20
-	typeW := 12
-	nsW := 18
-	userW := 14
-	refW := width - nameW - typeW - nsW - userW - 8
-	if refW < 10 {
-		refW = 10
+	if width >= 80 {
+		nameW := 20
+		typeW := 12
+		nsW := 18
+		userW := 14
+		refW := width - nameW - typeW - nsW - userW - 8
+		if refW < 10 {
+			refW = 10
+		}
+		return []table.Column{
+			{Title: "Name", Width: nameW},
+			{Title: "Type", Width: typeW},
+			{Title: "Namespace/DB", Width: nsW},
+			{Title: "DB User", Width: userW},
+			{Title: "Secret Ref", Width: refW},
+		}
+	} else if width >= 60 {
+		return []table.Column{
+			{Title: "Name", Width: 20},
+			{Title: "Type", Width: 12},
+			{Title: "Namespace/DB", Width: 18},
+			{Title: "Secret Ref", Width: width - 58},
+		}
+	} else if width >= 40 {
+		return []table.Column{
+			{Title: "Name", Width: 20},
+			{Title: "Namespace/DB", Width: 18},
+			{Title: "Secret Ref", Width: width - 46},
+		}
 	}
 	return []table.Column{
-		{Title: "Name", Width: nameW},
-		{Title: "Type", Width: typeW},
-		{Title: "Namespace/DB", Width: nsW},
-		{Title: "DB User", Width: userW},
-		{Title: "Secret Ref", Width: refW},
+		{Title: "Name", Width: 20},
+		{Title: "Secret Ref", Width: width - 28},
 	}
 }
 
 func (m *TargetsModel) refreshTable() {
+	if m.width == 0 {
+		m.width = 80
+	}
+	m.table.SetRows(m.buildRows(m.width))
+}
+
+func (m TargetsModel) buildRows(width int) []table.Row {
 	var rows []table.Row
 	for _, t := range m.app.cfg.Targets {
 		ns := t.Namespace
 		if ns == "" {
 			ns = t.DBName
 		}
-		rows = append(rows, table.Row{t.Name, t.Type, ns, t.DBUser, t.SecretRef})
+		if width >= 80 {
+			rows = append(rows, table.Row{t.Name, t.Type, ns, t.DBUser, t.SecretRef})
+		} else if width >= 60 {
+			rows = append(rows, table.Row{t.Name, t.Type, ns, t.SecretRef})
+		} else if width >= 40 {
+			rows = append(rows, table.Row{t.Name, ns, t.SecretRef})
+		} else {
+			rows = append(rows, table.Row{t.Name, t.SecretRef})
+		}
 	}
-	m.table.SetRows(rows)
+	return rows
 }
 
 func (m TargetsModel) capturesInput() bool { return m.mode != targetsModeList }
@@ -273,7 +307,7 @@ func (m *TargetsModel) resize(w, h int) TargetsModel {
 	m.height = h
 	m.table.SetColumns(targetsColumns(w))
 	m.table.SetHeight(h - 4)
-	m.refreshTable()
+	m.table.SetRows(m.buildRows(w))
 	return *m
 }
 

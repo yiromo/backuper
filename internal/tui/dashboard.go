@@ -28,24 +28,52 @@ func newDashboard(app *App) DashboardModel {
 	s.Header = styleTableHeader
 	s.Selected = styleSelected
 	t.SetStyles(s)
-	return DashboardModel{app: app, table: t}
+	return DashboardModel{app: app, table: t, width: 80}
 }
 
 func dashboardColumns(width int) []table.Column {
-	nameW := 20
-	typeW := 12
-	lastRunW := 20
-	statusW := 10
-	nextRunW := width - nameW - typeW - lastRunW - statusW - 8
+	nextRunW := width - 70
 	if nextRunW < 10 {
 		nextRunW = 10
 	}
+	nextW60 := width - 58
+	if nextW60 < 10 {
+		nextW60 = 10
+	}
+	nextW40 := width - 38
+	if nextW40 < 10 {
+		nextW40 = 10
+	}
+
+	if width >= 80 {
+		return []table.Column{
+			{Title: "Name", Width: 20},
+			{Title: "Type", Width: 12},
+			{Title: "Last Run", Width: 20},
+			{Title: "Status", Width: 10},
+			{Title: "Next Run", Width: nextRunW},
+		}
+	} else if width >= 60 {
+		return []table.Column{
+			{Title: "Name", Width: 20},
+			{Title: "Last Run", Width: 20},
+			{Title: "Status", Width: 10},
+			{Title: "Next Run", Width: nextW60},
+		}
+	} else if width >= 40 {
+		return []table.Column{
+			{Title: "Name", Width: 20},
+			{Title: "Status", Width: 10},
+			{Title: "Next Run", Width: nextW40},
+		}
+	}
+	nameW := width - 15
+	if nameW < 10 {
+		nameW = 10
+	}
 	return []table.Column{
 		{Title: "Name", Width: nameW},
-		{Title: "Type", Width: typeW},
-		{Title: "Last Run", Width: lastRunW},
-		{Title: "Status", Width: statusW},
-		{Title: "Next Run", Width: nextRunW},
+		{Title: "Status", Width: 10},
 	}
 }
 
@@ -70,7 +98,7 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case dashboardLoadedMsg:
 		m.records = msg.records
-		m.table.SetRows(m.buildRows())
+		m.table.SetRows(m.buildRows(m.width))
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -100,11 +128,11 @@ func (m *DashboardModel) resize(w, h int) DashboardModel {
 	m.height = h
 	m.table.SetColumns(dashboardColumns(w))
 	m.table.SetHeight(h - 4)
-	m.table.SetRows(m.buildRows())
+	m.table.SetRows(m.buildRows(w))
 	return *m
 }
 
-func (m DashboardModel) buildRows() []table.Row {
+func (m DashboardModel) buildRows(width int) []table.Row {
 	// Build a map of target → last record.
 	lastRec := make(map[string]*backup.Record)
 	for _, r := range m.records {
@@ -134,9 +162,16 @@ func (m DashboardModel) buildRows() []table.Row {
 				}
 			}
 		}
-		rows = append(rows, table.Row{
-			tgt.Name, tgt.Type, lastRun, status, nextRun,
-		})
+
+		if width >= 80 {
+			rows = append(rows, table.Row{tgt.Name, tgt.Type, lastRun, status, nextRun})
+		} else if width >= 60 {
+			rows = append(rows, table.Row{tgt.Name, lastRun, status, nextRun})
+		} else if width >= 40 {
+			rows = append(rows, table.Row{tgt.Name, status, nextRun})
+		} else {
+			rows = append(rows, table.Row{tgt.Name, status})
+		}
 	}
 	return rows
 }
