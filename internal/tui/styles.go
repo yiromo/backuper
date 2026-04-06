@@ -23,9 +23,12 @@ var (
 			Bold(true)
 
 	styleNavKey = lipgloss.NewStyle().
-			Background(colorPrimary).
 			Foreground(lipgloss.Color("#DDD6FE")).
 			Bold(true)
+
+	styleNavSep = lipgloss.NewStyle().
+			Background(colorPrimary).
+			Foreground(lipgloss.Color("#4C1D95"))
 
 	styleTitle = lipgloss.NewStyle().
 			Foreground(colorPrimary).
@@ -77,11 +80,11 @@ func navItem(key, label string, active bool) string {
 			Padding(0, 1).
 			Render(k + label)
 	}
+	content := styleNavKey.Render(k) + lipgloss.NewStyle().Foreground(colorFg).Render(label)
 	return lipgloss.NewStyle().
 		Background(colorPrimary).
-		Foreground(colorFg).
 		Padding(0, 1).
-		Render(styleNavKey.Render(k) + label)
+		Render(content)
 }
 
 func statusSuccess(s string) string { return styleSuccess.Render(s) }

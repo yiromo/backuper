@@ -202,6 +202,7 @@ func (a App) renderNav() string {
 		{"s", "schedules", viewSchedules},
 		{"h", "history", viewHistory},
 		{"r", "run", viewRun},
+		{"S", "secrets", viewSecrets},
 		{"?", "help", viewHelp},
 		{"q", "quit", -1},
 	}
@@ -209,7 +210,8 @@ func (a App) renderNav() string {
 	for _, item := range items {
 		parts = append(parts, navItem(item.key, item.label, a.view == item.view))
 	}
-	bar := strings.Join(parts, " ")
+	sep := styleNavSep.Render("│")
+	bar := strings.Join(parts, " "+sep+" ")
 	return lipgloss.NewStyle().
 		Width(a.width).
 		Background(colorPrimary).
@@ -221,7 +223,7 @@ func (a App) renderBody() string {
 	if h < 1 {
 		h = 1
 	}
-	style := lipgloss.NewStyle().Width(a.width).Height(h)
+	style := lipgloss.NewStyle().Width(a.width).Height(h).Background(colorBg)
 	switch a.view {
 	case viewDashboard:
 		return style.Render(a.dashboard.View())
