@@ -204,12 +204,12 @@ func (m SecretsModel) viewMenu() string {
 	if len(m.refs) == 0 {
 		sb.WriteString(styleMuted.Render("  No secrets stored yet.") + "\n")
 	}
+	mask := styleMuted.Render("●●●●●●●●")
 	for i, ref := range m.refs {
-		line := fmt.Sprintf("  %-40s  %s", ref, styleMuted.Render("●●●●●●●●"))
 		if i == m.cursor {
-			sb.WriteString(styleSelected.Render(line) + "\n")
+			sb.WriteString(styleAccent.Render("  ▸ ") + lipgloss.NewStyle().Foreground(colorFg).Bold(true).Render(fmt.Sprintf("%-36s", ref)) + "  " + mask + "\n")
 		} else {
-			sb.WriteString(line + "\n")
+			sb.WriteString("    " + styleMuted.Render(fmt.Sprintf("%-36s", ref)) + "  " + mask + "\n")
 		}
 	}
 	if m.errMsg != "" {

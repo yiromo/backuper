@@ -13,31 +13,18 @@ var (
 	colorWarning = lipgloss.Color("#F59E0B") // amber
 	colorMuted   = lipgloss.Color("#6B7280") // gray
 	colorAccent  = lipgloss.Color("#06B6D4") // cyan
-	colorFg      = lipgloss.Color("#F9FAFB") // near-white
+	colorFg      = lipgloss.Color("#E5E7EB") // soft white
 	colorBg      = lipgloss.Color("#111827") // near-black
-
-	styleNavBar = lipgloss.NewStyle().
-			Background(colorPrimary).
-			Foreground(colorFg).
-			Padding(0, 1).
-			Bold(true)
-
-	styleNavKey = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#DDD6FE")).
-			Bold(true)
-
-	styleNavSep = lipgloss.NewStyle().
-			Background(colorPrimary).
-			Foreground(lipgloss.Color("#4C1D95"))
+	colorBgLight = lipgloss.Color("#1F2937") // elevated surface
+	colorBorder  = lipgloss.Color("#374151") // subtle borders
 
 	styleTitle = lipgloss.NewStyle().
-			Foreground(colorPrimary).
+			Foreground(colorFg).
 			Bold(true).
 			MarginBottom(1)
 
 	styleSelected = lipgloss.NewStyle().
-			Background(colorPrimary).
-			Foreground(colorFg).
+			Foreground(colorAccent).
 			Bold(true)
 
 	styleSuccess = lipgloss.NewStyle().Foreground(colorSuccess)
@@ -47,8 +34,8 @@ var (
 	styleAccent  = lipgloss.NewStyle().Foreground(colorAccent)
 
 	styleStatusBar = lipgloss.NewStyle().
-			Background(lipgloss.Color("#1F2937")).
-			Foreground(colorFg).
+			Background(colorBgLight).
+			Foreground(colorMuted).
 			Padding(0, 1)
 
 	styleStatusErr = lipgloss.NewStyle().
@@ -58,7 +45,7 @@ var (
 
 	styleBorder = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(colorPrimary).
+			BorderForeground(colorBorder).
 			Padding(0, 1)
 
 	styleTableHeader = lipgloss.NewStyle().
@@ -71,20 +58,14 @@ var (
 )
 
 func navItem(key, label string, active bool) string {
-	k := "[" + key + "]"
+	keyStr := lipgloss.NewStyle().Foreground(colorAccent).Bold(true).Render(key)
+	base := lipgloss.NewStyle().Background(colorBgLight).Padding(0, 1)
 	if active {
-		return lipgloss.NewStyle().
-			Background(colorFg).
-			Foreground(colorPrimary).
-			Bold(true).
-			Padding(0, 1).
-			Render(k + label)
+		labelStr := lipgloss.NewStyle().Foreground(colorFg).Bold(true).Render(label)
+		return base.Render(keyStr + " " + labelStr)
 	}
-	content := styleNavKey.Render(k) + lipgloss.NewStyle().Foreground(colorFg).Render(label)
-	return lipgloss.NewStyle().
-		Background(colorPrimary).
-		Padding(0, 1).
-		Render(content)
+	labelStr := lipgloss.NewStyle().Foreground(colorMuted).Render(label)
+	return base.Render(keyStr + " " + labelStr)
 }
 
 func statusSuccess(s string) string { return styleSuccess.Render(s) }

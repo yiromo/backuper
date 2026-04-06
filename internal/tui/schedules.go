@@ -273,6 +273,15 @@ func (m SchedulesModel) viewDelete() string {
 		styleMuted.Render("[n]") + "o"
 }
 
+func (m *SchedulesModel) resize(w, h int) SchedulesModel {
+	m.width = w
+	m.height = h
+	m.table.SetColumns(schedulesColumns(w))
+	m.table.SetHeight(h - 4)
+	m.refreshTable()
+	return *m
+}
+
 func newScheduleForm(s *config.ScheduleConfig, editIdx int) scheduleForm {
 	labels := []string{"target", "destination", "cron expression", "compress (gzip/none)", "tmp_dir", "keep_last"}
 	values := make([]string, len(labels))

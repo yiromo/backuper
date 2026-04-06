@@ -209,11 +209,11 @@ func (m RunModel) viewPickTarget() string {
 	var sb strings.Builder
 	sb.WriteString(styleTitle.Render("Run Backup — Select Target") + "\n\n")
 	for i, t := range m.app.cfg.Targets {
-		line := fmt.Sprintf("  %s (%s)", t.Name, t.Type)
+		name := fmt.Sprintf("%s (%s)", t.Name, t.Type)
 		if i == m.targetIdx {
-			sb.WriteString(styleSelected.Render(line) + "\n")
+			sb.WriteString(styleAccent.Render("  ▸ ") + lipgloss.NewStyle().Foreground(colorFg).Bold(true).Render(name) + "\n")
 		} else {
-			sb.WriteString(line + "\n")
+			sb.WriteString(styleMuted.Render("    "+name) + "\n")
 		}
 	}
 	if len(m.app.cfg.Targets) == 0 {
@@ -227,11 +227,11 @@ func (m RunModel) viewPickDest() string {
 	var sb strings.Builder
 	sb.WriteString(styleTitle.Render(fmt.Sprintf("Run Backup — Select Destination (target: %s)", styleAccent.Render(m.chosenTarget))) + "\n\n")
 	for i, d := range m.app.cfg.Destinations {
-		line := fmt.Sprintf("  %s (%s)", d.Name, d.Type)
+		name := fmt.Sprintf("%s (%s)", d.Name, d.Type)
 		if i == m.destIdx {
-			sb.WriteString(styleSelected.Render(line) + "\n")
+			sb.WriteString(styleAccent.Render("  ▸ ") + lipgloss.NewStyle().Foreground(colorFg).Bold(true).Render(name) + "\n")
 		} else {
-			sb.WriteString(line + "\n")
+			sb.WriteString(styleMuted.Render("    "+name) + "\n")
 		}
 	}
 	if len(m.app.cfg.Destinations) == 0 {
@@ -266,7 +266,7 @@ func (m RunModel) viewLog() string {
 		}
 	}
 
-	spinner := styleWarning.Render("⣿ running...")
+	spinner := styleWarning.Render("● ") + styleMuted.Render("running...")
 	return lipgloss.JoinVertical(lipgloss.Left,
 		styleTitle.Render(header),
 		"",
@@ -277,9 +277,9 @@ func (m RunModel) viewLog() string {
 }
 
 func (m RunModel) viewDone() string {
-	statusLine := styleSuccess.Render("Backup completed successfully!")
+	statusLine := styleSuccess.Render("✓ Backup completed successfully!")
 	if m.lastErr != nil {
-		statusLine = styleError.Render("Backup failed: " + m.lastErr.Error())
+		statusLine = styleError.Render("✗ Backup failed: " + m.lastErr.Error())
 	}
 	visible := m.logLines
 	maxLines := m.height - 8

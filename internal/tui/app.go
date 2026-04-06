@@ -3,7 +3,6 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 
@@ -94,9 +93,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
-		a.dashboard = a.dashboard.resize(msg.Width, msg.Height-3)
-		a.history = a.history.resize(msg.Width, msg.Height-3)
-		a.runView = a.runView.resize(msg.Width, msg.Height-3)
+		bodyW := msg.Width - 4 // horizontal padding in renderBody
+		bodyH := msg.Height - 3
+		a.dashboard = a.dashboard.resize(bodyW, bodyH)
+		a.targets = a.targets.resize(bodyW, bodyH)
+		a.schedules = a.schedules.resize(bodyW, bodyH)
+		a.history = a.history.resize(bodyW, bodyH)
+		a.runView = a.runView.resize(bodyW, bodyH)
 		return a, nil
 
 	case switchViewMsg:
@@ -210,11 +213,10 @@ func (a App) renderNav() string {
 	for _, item := range items {
 		parts = append(parts, navItem(item.key, item.label, a.view == item.view))
 	}
-	sep := styleNavSep.Render("│")
-	bar := strings.Join(parts, " "+sep+" ")
+	bar := strings.Join(parts, "")
 	return lipgloss.NewStyle().
 		Width(a.width).
-		Background(colorPrimary).
+		Background(colorBgLight).
 		Render(bar)
 }
 
@@ -223,7 +225,15 @@ func (a App) renderBody() string {
 	if h < 1 {
 		h = 1
 	}
-	style := lipgloss.NewStyle().Width(a.width).Height(h).Background(colorBg)
+	contentW := a.width - 4
+	if contentW < 20 {
+		contentW = 20
+	}
+	style := lipgloss.NewStyle().
+		Width(contentW).
+		Height(h).
+		Background(colorBg).
+		Padding(0, 2)
 	switch a.view {
 	case viewDashboard:
 		return style.Render(a.dashboard.View())
@@ -257,27 +267,39 @@ func (a App) renderStatus() string {
 }
 
 func (a App) renderHelp() string {
-	lines := []string{
-		styleTitle.Render("backuper — keyboard shortcuts"),
-		"",
-		fmt.Sprintf("  %-10s  %s", "[d]", "Dashboard — overview of all targets"),
-		fmt.Sprintf("  %-10s  %s", "[t]", "Targets — manage backup sources"),
-		fmt.Sprintf("  %-10s  %s", "[s]", "Schedules — manage cron schedules"),
-		fmt.Sprintf("  %-10s  %s", "[h]", "History — view past backup runs"),
-		fmt.Sprintf("  %-10s  %s", "[r]", "Run — run a backup interactively"),
-		fmt.Sprintf("  %-10s  %s", "[S]", "Secrets — manage encrypted secrets"),
-		fmt.Sprintf("  %-10s  %s", "[q]", "Quit"),
-		"",
-		styleMuted.Render("Within views:"),
-		fmt.Sprintf("  %-10s  %s", "↑/↓ / j/k", "Navigate rows"),
-		fmt.Sprintf("  %-10s  %s", "[enter]", "Select / confirm"),
-		fmt.Sprintf("  %-10s  %s", "[a]", "Add new item"),
-		fmt.Sprintf("  %-10s  %s", "[e]", "Edit selected item"),
-		fmt.Sprintf("  %-10s  %s", "[D]", "Delete selected item"),
-		fmt.Sprintf("  %-10s  %s", "[f]", "Filter (history view)"),
-		fmt.Sprintf("  %-10s  %s", "[esc]", "Cancel / go back"),
+	keyStyle := lipgloss.NewStyle().Foreground(colorAccent).Bold(true).Width(12)
+	descStyle := lipgloss.NewStyle().Foreground(colorFg)
+
+	var sb strings.Builder
+	sb.WriteString(styleTitle.Render("Keyboard Shortcuts"))
+
+	sb.WriteString(styleAccent.Render("Navigation") + "\n")
+	for _, item := range [][2]string{
+		{"d", "Dashboard — overview of all targets"},
+		{"t", "Targets — manage backup sources"},
+		{"s", "Schedules — manage cron schedules"},
+		{"h", "History — view past backup runs"},
+		{"r", "Run — run a backup interactively"},
+		{"S", "Secrets — manage encrypted secrets"},
+		{"q", "Quit"},
+	} {
+		sb.WriteString("  " + keyStyle.Render(item[0]) + descStyle.Render(item[1]) + "\n")
 	}
-	return strings.Join(lines, "\n")
+
+	sb.WriteString("\n" + styleAccent.Render("Within Views") + "\n")
+	for _, item := range [][2]string{
+		{"↑/↓ j/k", "Navigate rows"},
+		{"enter", "Select / confirm"},
+		{"a", "Add new item"},
+		{"e", "Edit selected item"},
+		{"D", "Delete selected item"},
+		{"f", "Filter (history view)"},
+		{"esc", "Cancel / go back"},
+	} {
+		sb.WriteString("  " + keyStyle.Render(item[0]) + descStyle.Render(item[1]) + "\n")
+	}
+
+	return sb.String()
 }
 
 func (a App) currentViewCapturesInput() bool {

@@ -268,6 +268,15 @@ func (m TargetsModel) viewDelete() string {
 		styleMuted.Render("[n]") + "o"
 }
 
+func (m *TargetsModel) resize(w, h int) TargetsModel {
+	m.width = w
+	m.height = h
+	m.table.SetColumns(targetsColumns(w))
+	m.table.SetHeight(h - 4)
+	m.refreshTable()
+	return *m
+}
+
 func newTargetForm(tgt *config.TargetConfig, editIdx int) targetForm {
 	labels := []string{"name", "type (kubernetes/local)", "namespace", "pod_selector", "db_user", "db_name", "secret_ref"}
 	values := make([]string, len(labels))
