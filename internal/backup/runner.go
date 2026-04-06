@@ -19,15 +19,35 @@ import (
 	"backuper/internal/target"
 )
 
+type Notifier interface {
+	Name() string
+	Send(ctx context.Context, rec *Record) error
+	ShouldSend(rec *Record) bool
+}
+
 type Runner struct {
-	cfg     *config.Config
-	secrets secrets.Store
-	histDB  *HistoryDB
-	logger  *slog.Logger
+	cfg       *config.Config
+	secrets   secrets.Store
+	histDB    *HistoryDB
+	logger    *slog.Logger
+	notifiers []Notifier
 }
 
 func NewRunner(cfg *config.Config, store secrets.Store, histDB *HistoryDB, logger *slog.Logger) *Runner {
 	return &Runner{cfg: cfg, secrets: store, histDB: histDB, logger: logger}
+}
+
+func (r *Runner) SetNotifiers(n []Notifier) { r.notifiers = n }
+
+func (r *Runner) notify(ctx context.Context, rec *Record) {
+	for _, n := range r.notifiers {
+		if !n.ShouldSend(rec) {
+			continue
+		}
+		if err := n.Send(ctx, rec); err != nil {
+			r.logger.Error("notification failed", "notifier", n.Name(), "error", err)
+		}
+	}
 }
 
 type RunOptions struct {
@@ -177,6 +197,7 @@ func (r *Runner) Run(ctx context.Context, opts RunOptions, logW io.Writer) (*Rec
 			r.logger.Error("writing history", "error", err)
 		}
 	}
+	r.notify(ctx, rec)
 	return rec, nil
 }
 
@@ -190,6 +211,7 @@ func (r *Runner) fail(ctx context.Context, rec *Record, err error, logW io.Write
 			r.logger.Error("writing failure history", "error", dbErr)
 		}
 	}
+	r.notify(ctx, rec)
 	return err
 }
 

@@ -9,6 +9,7 @@
 - **Targets**: Kubernetes pod exec (`pg_dumpall`) or local `pg_dump`/`pg_dumpall`
 - **Destinations**: Local directory, SCP, or rsync over SSH
 - **Scheduling**: Cron expressions with configurable retention (`keep_last`) and automatic schedule-based directory organization
+- **Notifications**: Telegram alerts on backup success/failure (configurable per notification)
 - **Secrets**: Age-encrypted store; values never displayed in the UI
 - **History**: SQLite log of every backup run with size, duration, and output
 - **Daemon**: Headless mode with encrypted passphrase for unattended operation
@@ -29,8 +30,11 @@ internal/
     local.go                  - Local filesystem copy
     scp.go                    - SCP transfer
     rsync.go                  - Rsync over SSH
+  notify/                     - Post-backup notification abstraction
+    notify.go                 - Notifier factory (routes by type)
+    telegram.go               - Telegram Bot API notifier
   backup/
-    runner.go                 - Orchestrates dump → compress → transfer → retention
+    runner.go                 - Orchestrates dump → compress → transfer → retention → notify
     history.go                - SQLite history tracking (modernc/sqlite)
   scheduler/                  - Cron-based scheduling (robfig/cron)
   secrets/
@@ -145,6 +149,7 @@ Backup files are automatically organized into subdirectories based on the cron e
 - **Temp file cleanup**: Backup dumps to temp file first; cleaned up on failure or after successful transfer
 - **Retention**: Sorts files by name (date-embedded) and deletes oldest beyond `keep_last`
 - **Error handling**: Failures are recorded in history with error messages
+- **Notifications**: Dispatched after history is persisted; failures are logged but never block the backup
 - **Daemon passphrase**: Automatically encrypted with age X25519 when `--save-passphrase` is used
 
 ## CI/CD

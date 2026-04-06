@@ -46,6 +46,15 @@ schedules:
     retention:
       keep_last: 14
 
+notifications:
+  - name: telegram-alerts
+    type: telegram
+    bot_token_ref: tg_bot_token         # secret ref (backuper secrets set tg_bot_token)
+    chat_id: "-100123456789"            # Telegram group/chat ID
+    # thread_id: 42                     # optional: forum topic / subgroup thread ID
+    on_success: true
+    on_failure: true
+
 # Schedule types are automatically derived from the cron expression:
 #   Daily:   "X Y * * *"         → daily/
 #   Weekly:  "X Y * * 0-6"       → weekly/YYYY-Www/

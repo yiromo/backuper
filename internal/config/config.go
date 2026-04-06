@@ -11,9 +11,20 @@ import (
 )
 
 type Config struct {
-	Targets      []TargetConfig      `yaml:"targets"`
-	Destinations []DestinationConfig `yaml:"destinations"`
-	Schedules    []ScheduleConfig    `yaml:"schedules"`
+	Targets       []TargetConfig       `yaml:"targets"`
+	Destinations  []DestinationConfig  `yaml:"destinations"`
+	Schedules     []ScheduleConfig     `yaml:"schedules"`
+	Notifications []NotificationConfig `yaml:"notifications,omitempty"`
+}
+
+type NotificationConfig struct {
+	Name        string `yaml:"name"`
+	Type        string `yaml:"type"`          // "telegram"
+	BotTokenRef string `yaml:"bot_token_ref"` // secret ref for bot token
+	ChatID      string `yaml:"chat_id"`       // group/chat ID
+	ThreadID    int    `yaml:"thread_id,omitempty"`
+	OnSuccess   bool   `yaml:"on_success"`
+	OnFailure   bool   `yaml:"on_failure"`
 }
 
 type TargetConfig struct {

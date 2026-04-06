@@ -17,6 +17,7 @@ import (
 
 	"backuper/internal/backup"
 	"backuper/internal/config"
+	"backuper/internal/notify"
 	"backuper/internal/scheduler"
 	"backuper/internal/secrets"
 	"backuper/internal/tui"
@@ -323,8 +324,22 @@ func loadSavedPassphrase() (string, error) {
 	return strings.TrimSpace(passBuf.String()), nil
 }
 
+func buildNotifiers() []backup.Notifier {
+	var notifiers []backup.Notifier
+	for _, nc := range globalCfg.Notifications {
+		n, err := notify.New(nc, globalStor)
+		if err != nil {
+			globalLog.Error("skipping notification", "name", nc.Name, "error", err)
+			continue
+		}
+		notifiers = append(notifiers, n)
+	}
+	return notifiers
+}
+
 func runTUI() error {
 	runner := backup.NewRunner(globalCfg, globalStor, globalHist, globalLog)
+	runner.SetNotifiers(buildNotifiers())
 	sched := scheduler.New(globalCfg, runner, globalLog)
 	if err := sched.RegisterAll(); err != nil {
 		return fmt.Errorf("registering schedules: %w", err)
@@ -338,6 +353,7 @@ func runTUI() error {
 
 func runDaemon(cmd *cobra.Command, args []string) error {
 	runner := backup.NewRunner(globalCfg, globalStor, globalHist, globalLog)
+	runner.SetNotifiers(buildNotifiers())
 	sched := scheduler.New(globalCfg, runner, globalLog)
 	if err := sched.RegisterAll(); err != nil {
 		return fmt.Errorf("registering schedules: %w", err)
@@ -374,6 +390,7 @@ func runOneShot(cmd *cobra.Command, args []string) error {
 	}
 
 	runner := backup.NewRunner(globalCfg, globalStor, globalHist, globalLog)
+	runner.SetNotifiers(buildNotifiers())
 	sched := scheduler.New(globalCfg, runner, globalLog)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
