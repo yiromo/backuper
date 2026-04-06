@@ -77,12 +77,29 @@ func (d *SCPDestination) buildSSHConfig() (*ssh.ClientConfig, error) {
 	}, nil
 }
 
-func (d *SCPDestination) Transfer(_ context.Context, localPath string) error {
+func (d *SCPDestination) Transfer(_ context.Context, localPath string, targetDir string) error {
 	client, err := d.sshClient()
 	if err != nil {
 		return err
 	}
 	defer client.Close()
+
+	// Create remote directory if needed.
+	remoteDir := d.cfg.RemotePath
+	if targetDir != "" {
+		remoteDir = remoteDir + "/" + targetDir
+	}
+	{
+		session, err := client.NewSession()
+		if err != nil {
+			return fmt.Errorf("new ssh session for mkdir: %w", err)
+		}
+		if err := session.Run(fmt.Sprintf("mkdir -p %s", remoteDir)); err != nil {
+			session.Close()
+			return fmt.Errorf("creating remote dir %q: %w", remoteDir, err)
+		}
+		session.Close()
+	}
 
 	f, err := os.Open(localPath)
 	if err != nil {
@@ -102,7 +119,6 @@ func (d *SCPDestination) Transfer(_ context.Context, localPath string) error {
 	defer session.Close()
 
 	// Use scp sink mode on the remote end.
-	remoteDir := d.cfg.RemotePath
 	stdin, err := session.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("stdin pipe: %w", err)

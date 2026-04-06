@@ -12,7 +12,10 @@ import (
 type Destination interface {
 	Name() string
 	Type() string
-	Transfer(ctx context.Context, localPath string) error
+	// Transfer copies the file at localPath to the destination.
+	// targetDir is the schedule-based subdirectory (e.g. "daily", "weekly/2026-04").
+	// If empty, the file goes directly in the base path.
+	Transfer(ctx context.Context, localPath string, targetDir string) error
 	ListFiles(ctx context.Context, targetName string) ([]string, error)
 	DeleteFile(ctx context.Context, filename string) error
 }

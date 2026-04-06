@@ -45,11 +45,12 @@ func (s *Scheduler) RegisterAll() error {
 
 func (s *Scheduler) register(sched config.ScheduleConfig) error {
 	opts := backup.RunOptions{
-		Target:      sched.Target,
-		Destination: sched.Destination,
-		Compress:    sched.Compress,
-		TmpDir:      sched.TmpDir,
-		Retention:   sched.Retention,
+		Target:       sched.Target,
+		Destination:  sched.Destination,
+		Compress:     sched.Compress,
+		TmpDir:       sched.TmpDir,
+		Retention:    sched.Retention,
+		ScheduleType: sched.ScheduleType(),
 	}
 	id, err := s.c.AddFunc(sched.Cron, func() {
 		s.logger.Info("cron job starting", "target", sched.Target, "dest", sched.Destination)
@@ -127,15 +128,17 @@ func (s *Scheduler) RunNow(ctx context.Context, targetName, destName string, log
 
 	// Try to match a schedule for options (compress, retention, etc.).
 	opts := backup.RunOptions{
-		Target:      targetName,
-		Destination: destName,
-		Compress:    "gzip",
+		Target:       targetName,
+		Destination:  destName,
+		Compress:     "gzip",
+		ScheduleType: config.ScheduleTypeCustom,
 	}
 	for _, sched := range s.cfg.Schedules {
 		if sched.Target == tgtCfg.Name && sched.Destination == dstCfg.Name {
 			opts.Compress = sched.Compress
 			opts.TmpDir = sched.TmpDir
 			opts.Retention = sched.Retention
+			opts.ScheduleType = sched.ScheduleType()
 			break
 		}
 	}

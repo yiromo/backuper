@@ -45,3 +45,32 @@ schedules:
     tmp_dir: /tmp
     retention:
       keep_last: 14
+
+# Schedule types are automatically derived from the cron expression:
+#   Daily:   "X Y * * *"         → daily/
+#   Weekly:  "X Y * * 0-6"       → weekly/YYYY-Www/
+#   Monthly: "X Y 1 * *"         → monthly/YYYY-MM/
+#   Yearly:  "X Y 1 M *"         → yearly/YYYY/
+#   Custom:  anything else       → (root directory)
+#
+# Examples:
+#   - target: exampledb
+#     destination: local-archive
+#     cron: "0 2 * * 1"          # weekly (every Monday at 02:00)
+#     compress: gzip
+#     retention:
+#       keep_last: 4
+#
+#   - target: exampledb
+#     destination: local-archive
+#     cron: "0 2 1 * *"          # monthly (1st of each month at 02:00)
+#     compress: gzip
+#     retention:
+#       keep_last: 12
+#
+#   - target: exampledb
+#     destination: local-archive
+#     cron: "0 2 1 1 *"          # yearly (January 1st at 02:00)
+#     compress: gzip
+#     retention:
+#       keep_last: 5

@@ -36,6 +36,9 @@ type RunOptions struct {
 	Compress    string // "gzip" | "none" | ""
 	TmpDir      string
 	Retention   config.RetentionConfig
+	// ScheduleType is the schedule type (daily, weekly, monthly, yearly).
+	// Used to determine the subdirectory for the backup file.
+	ScheduleType config.ScheduleType
 }
 
 // Run executes a full backup run and returns the history record.
@@ -143,8 +146,11 @@ func (r *Runner) Run(ctx context.Context, opts RunOptions, logW io.Writer) (*Rec
 	rec.SizeBytes = fi.Size()
 	log("Dump complete: %s (%.1f MB)", tmpName, float64(rec.SizeBytes)/1e6)
 
+	// Compute the target directory based on schedule type.
+	targetDir := string(opts.ScheduleType)
+
 	log("Transferring to %s (%s)...", opts.Destination, dst.Type())
-	if err := dst.Transfer(ctx, tmpPath); err != nil {
+	if err := dst.Transfer(ctx, tmpPath, targetDir); err != nil {
 		return rec, r.fail(ctx, rec, fmt.Errorf("transfer: %w", err), logW)
 	}
 	log("Transfer complete.")

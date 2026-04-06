@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -46,9 +48,79 @@ type ScheduleConfig struct {
 	Target      string          `yaml:"target"`
 	Destination string          `yaml:"destination"`
 	Cron        string          `yaml:"cron"`
-	Compress    string          `yaml:"compress"`  // "gzip" | "none"
+	Compress    string          `yaml:"compress"` // "gzip" | "none"
 	TmpDir      string          `yaml:"tmp_dir"`
 	Retention   RetentionConfig `yaml:"retention"`
+}
+
+// ScheduleType represents the type of backup schedule.
+type ScheduleType string
+
+const (
+	ScheduleTypeDaily   ScheduleType = "daily"
+	ScheduleTypeWeekly  ScheduleType = "weekly"
+	ScheduleTypeMonthly ScheduleType = "monthly"
+	ScheduleTypeYearly  ScheduleType = "yearly"
+	ScheduleTypeCustom  ScheduleType = "custom"
+)
+
+// ScheduleType derives the schedule type from a cron expression.
+// It inspects the cron string to determine the frequency:
+//   - Yearly: "X Y 1 1 *" (specific day of month = 1 and specific month)
+//   - Monthly: "X Y 1 * *" (day of month = 1, any month)
+//   - Weekly: "X Y * * 0-6" (day of week specified, any day of month)
+//   - Daily: "X Y * * *" (any day, any month, any day of week)
+//   - Custom: anything else (multiple times per day, complex patterns)
+func (s ScheduleConfig) ScheduleType() ScheduleType {
+	cron := strings.TrimSpace(s.Cron)
+	fields := strings.Fields(cron)
+	if len(fields) < 5 {
+		return ScheduleTypeCustom
+	}
+
+	minute, hour, dom, month, dow := fields[0], fields[1], fields[2], fields[3], fields[4]
+
+	// Yearly: specific day (1) and specific month (not *), any day of week
+	if dom == "1" && month != "*" && dow == "*" {
+		return ScheduleTypeYearly
+	}
+
+	// Monthly: day of month = 1, any month, any day of week
+	if dom == "1" && month == "*" && dow == "*" {
+		return ScheduleTypeMonthly
+	}
+
+	// Weekly: day of week is specified (not *), any day of month
+	if dow != "*" && dom == "*" {
+		return ScheduleTypeWeekly
+	}
+
+	// Daily: any day, any month, any day of week (all *), specific hour/minute (not *, not */N)
+	if dom == "*" && month == "*" && dow == "*" &&
+		!strings.HasPrefix(minute, "*/") && !strings.HasPrefix(hour, "*/") {
+		return ScheduleTypeDaily
+	}
+
+	return ScheduleTypeCustom
+}
+
+// ScheduleDir returns the subdirectory name for a backup based on schedule type and time.
+// Examples: "daily", "weekly/2026-W14", "monthly/2026-04", "yearly/2026"
+func (s ScheduleConfig) ScheduleDir(t time.Time) string {
+	st := s.ScheduleType()
+	switch st {
+	case ScheduleTypeDaily:
+		return "daily"
+	case ScheduleTypeWeekly:
+		_, week := t.ISOWeek()
+		return fmt.Sprintf("weekly/%d-W%02d", t.Year(), week)
+	case ScheduleTypeMonthly:
+		return fmt.Sprintf("monthly/%s", t.Format("2006-01"))
+	case ScheduleTypeYearly:
+		return fmt.Sprintf("yearly/%d", t.Year())
+	default:
+		return ""
+	}
 }
 
 type RetentionConfig struct {

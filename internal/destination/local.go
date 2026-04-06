@@ -23,8 +23,11 @@ func newLocal(cfg *config.DestinationConfig) *LocalDestination {
 func (d *LocalDestination) Name() string { return d.cfg.Name }
 func (d *LocalDestination) Type() string { return "local" }
 
-func (d *LocalDestination) Transfer(_ context.Context, localPath string) error {
+func (d *LocalDestination) Transfer(_ context.Context, localPath string, targetDir string) error {
 	destDir := expandHome(d.cfg.Path)
+	if targetDir != "" {
+		destDir = filepath.Join(destDir, targetDir)
+	}
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return fmt.Errorf("creating destination dir %q: %w", destDir, err)
 	}

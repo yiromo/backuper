@@ -30,8 +30,12 @@ func newRsync(cfg *config.DestinationConfig, store secrets.Store) *RsyncDestinat
 func (d *RsyncDestination) Name() string { return d.cfg.Name }
 func (d *RsyncDestination) Type() string { return "rsync" }
 
-func (d *RsyncDestination) Transfer(ctx context.Context, localPath string) error {
-	remote := fmt.Sprintf("%s@%s:%s", d.cfg.User, d.cfg.Host, d.cfg.RemotePath)
+func (d *RsyncDestination) Transfer(ctx context.Context, localPath string, targetDir string) error {
+	remotePath := d.cfg.RemotePath
+	if targetDir != "" {
+		remotePath = remotePath + "/" + targetDir
+	}
+	remote := fmt.Sprintf("%s@%s:%s", d.cfg.User, d.cfg.Host, remotePath)
 
 	var cmd *exec.Cmd
 	switch d.cfg.Auth {
