@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"filippo.io/age"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -21,11 +23,13 @@ import (
 )
 
 var (
-	cfgPath    string
-	globalCfg  *config.Config
-	globalLog  *slog.Logger
-	globalHist *backup.HistoryDB
-	globalStor secrets.Store
+	cfgPath        string
+	passphraseFile string
+	savePassphrase bool
+	globalCfg      *config.Config
+	globalLog      *slog.Logger
+	globalHist     *backup.HistoryDB
+	globalStor     secrets.Store
 )
 
 func main() {
@@ -40,6 +44,7 @@ Run without sub-commands to open the interactive TUI.`,
 		SilenceUsage: true,
 	}
 	root.PersistentFlags().StringVar(&cfgPath, "config", config.DefaultConfigPath(), "path to config file")
+	root.PersistentFlags().StringVar(&passphraseFile, "passphrase-file", "", "path to file containing secrets store passphrase (for daemon mode)")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// Skip initialisation for config validate (reads its own cfg).
 		if cmd.Name() == "validate" {
@@ -51,8 +56,13 @@ Run without sub-commands to open the interactive TUI.`,
 	daemonCmd := &cobra.Command{
 		Use:   "daemon",
 		Short: "Run the backup scheduler headlessly (no TUI)",
-		RunE:  runDaemon,
+		Long: `Run the backup scheduler headlessly.
+
+For first-time setup, use --save-passphrase to encrypt and store the
+secrets passphrase so the daemon can start unattended on reboot.`,
+		RunE: runDaemon,
 	}
+	daemonCmd.Flags().BoolVar(&savePassphrase, "save-passphrase", false, "encrypt and save the secrets passphrase for unattended daemon startup")
 
 	runCmd := &cobra.Command{
 		Use:   "run <target>",
@@ -164,6 +174,14 @@ func initGlobals() error {
 	if err != nil {
 		return fmt.Errorf("secrets passphrase: %w", err)
 	}
+
+	// If --save-passphrase was given, encrypt and save it for future unattended starts.
+	if savePassphrase && !secrets.Exists(savedPassphrasePath()) {
+		if err := savePassphraseEncrypted(passphrase); err != nil {
+			return fmt.Errorf("saving passphrase: %w", err)
+		}
+	}
+
 	globalStor, err = secrets.NewAgeStore(storePath, passphrase)
 	if err != nil {
 		return fmt.Errorf("opening secrets store: %w", err)
@@ -173,6 +191,30 @@ func initGlobals() error {
 }
 
 func promptPassphrase(storePath string) (string, error) {
+	// 0. Saved (encrypted) passphrase file — auto-detected for daemon mode.
+	saved, err := loadSavedPassphrase()
+	if err != nil {
+		return "", err
+	}
+	if saved != "" {
+		return saved, nil
+	}
+
+	// 1. Environment variable.
+	if pass := os.Getenv("BACKUPER_PASSPHRASE"); pass != "" {
+		return pass, nil
+	}
+
+	// 2. Explicit passphrase file (--passphrase-file flag).
+	if passphraseFile != "" {
+		data, err := os.ReadFile(passphraseFile)
+		if err != nil {
+			return "", fmt.Errorf("reading passphrase file %q: %w", passphraseFile, err)
+		}
+		return strings.TrimSpace(string(data)), nil
+	}
+
+	// 3. Interactive prompt.
 	prompt := "Enter secrets passphrase"
 	if !secrets.Exists(storePath) {
 		prompt = "Create secrets passphrase (new store)"
@@ -184,6 +226,101 @@ func promptPassphrase(storePath string) (string, error) {
 		return "", fmt.Errorf("reading passphrase: %w", err)
 	}
 	return string(pass), nil
+}
+
+// Saved passphrase file paths.
+func savedPassphrasePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "backuper", ".backuper_passphrase")
+}
+
+func savedKeyPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "backuper", ".backuper_key")
+}
+
+// savePassphraseEncrypted generates an age X25519 keypair, encrypts the
+// passphrase with the public key, and writes both to disk.
+func savePassphraseEncrypted(passphrase string) error {
+	// Generate a new X25519 key pair.
+	identity, err := age.GenerateX25519Identity()
+	if err != nil {
+		return fmt.Errorf("creating age identity: %w", err)
+	}
+
+	// Encrypt the passphrase.
+	var buf bytes.Buffer
+	w, err := age.Encrypt(&buf, identity.Recipient())
+	if err != nil {
+		return fmt.Errorf("creating encryptor: %w", err)
+	}
+	if _, err := w.Write([]byte(passphrase)); err != nil {
+		return fmt.Errorf("encrypting passphrase: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("finalizing encryption: %w", err)
+	}
+
+	// Write the encrypted passphrase and the identity (private key).
+	dir := filepath.Dir(savedPassphrasePath())
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("creating dir: %w", err)
+	}
+	if err := os.WriteFile(savedPassphrasePath(), buf.Bytes(), 0600); err != nil {
+		return fmt.Errorf("writing encrypted passphrase: %w", err)
+	}
+
+	// Write identity in the standard age format:
+	// # created: <timestamp>
+	// # public key: <pubkey>
+	// AGE-SECRET-KEY-1...
+	recipient := identity.Recipient().String()
+	var idBuf bytes.Buffer
+	idBuf.WriteString(fmt.Sprintf("# created: %s\n", "now"))
+	idBuf.WriteString(fmt.Sprintf("# public key: %s\n", recipient))
+	idBuf.WriteString(identity.String())
+	if err := os.WriteFile(savedKeyPath(), idBuf.Bytes(), 0600); err != nil {
+		return fmt.Errorf("writing identity key: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, "Passphrase saved encrypted to:", savedPassphrasePath())
+	fmt.Fprintln(os.Stderr, "Private key saved to:", savedKeyPath())
+	fmt.Fprintln(os.Stderr, "Keep the private key secure. Daemon will auto-decrypt on future starts.")
+	return nil
+}
+
+// loadSavedPassphrase reads and decrypts the saved passphrase.
+// Returns empty string if no saved passphrase exists.
+func loadSavedPassphrase() (string, error) {
+	encPath := savedPassphrasePath()
+	keyPath := savedKeyPath()
+	if !secrets.Exists(encPath) || !secrets.Exists(keyPath) {
+		return "", nil
+	}
+
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		return "", fmt.Errorf("reading saved key: %w", err)
+	}
+	identities, err := age.ParseIdentities(bytes.NewReader(keyData))
+	if err != nil {
+		return "", fmt.Errorf("parsing saved key: %w", err)
+	}
+
+	encData, err := os.ReadFile(encPath)
+	if err != nil {
+		return "", fmt.Errorf("reading encrypted passphrase: %w", err)
+	}
+	r, err := age.Decrypt(bytes.NewReader(encData), identities...)
+	if err != nil {
+		return "", fmt.Errorf("decrypting saved passphrase: %w", err)
+	}
+	var passBuf bytes.Buffer
+	if _, err := passBuf.ReadFrom(r); err != nil {
+		return "", fmt.Errorf("reading decrypted data: %w", err)
+	}
+
+	return strings.TrimSpace(passBuf.String()), nil
 }
 
 func runTUI() error {
