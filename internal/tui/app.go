@@ -264,6 +264,13 @@ func (a App) renderStatus() string {
 	if msg == "" {
 		msg = "Press [?] for help"
 	}
+	msg = strings.ReplaceAll(msg, "\n", " ")
+	if maxW := a.width - 2; maxW > 1 {
+		runes := []rune(msg)
+		if len(runes) > maxW {
+			msg = string(runes[:maxW-1]) + "…"
+		}
+	}
 	st := styleStatusBar
 	if a.statusErr {
 		st = styleStatusErr
