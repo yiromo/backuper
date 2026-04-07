@@ -70,7 +70,12 @@ func (t *KubernetesTarget) Dump(ctx context.Context, w io.Writer, password strin
 		return fmt.Errorf("finding pod: %w", err)
 	}
 
-	dumpCmd := fmt.Sprintf("PGPASSWORD='%s' pg_dumpall -U %s", password, t.cfg.DBUser)
+	var dumpCmd string
+	if t.cfg.DBName == "" {
+		dumpCmd = fmt.Sprintf("PGPASSWORD='%s' pg_dumpall -U %s", password, t.cfg.DBUser)
+	} else {
+		dumpCmd = fmt.Sprintf("PGPASSWORD='%s' pg_dump -U %s %s", password, t.cfg.DBUser, t.cfg.DBName)
+	}
 
 	req := t.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
