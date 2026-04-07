@@ -35,6 +35,13 @@ func (d *RsyncDestination) Transfer(ctx context.Context, localPath string, targe
 	if targetDir != "" {
 		remotePath = remotePath + "/" + targetDir
 	}
+
+	if targetDir != "" {
+		if err := d.sshMkdirAll(ctx, remotePath); err != nil {
+			return fmt.Errorf("creating remote dir: %w", err)
+		}
+	}
+
 	remote := fmt.Sprintf("%s@%s:%s", d.cfg.User, d.cfg.Host, remotePath)
 
 	var cmd *exec.Cmd
@@ -62,6 +69,25 @@ func (d *RsyncDestination) Transfer(ctx context.Context, localPath string, targe
 	cmd.Stderr = &errBuf
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("rsync: %w (stderr: %s)", err, errBuf.String())
+	}
+	return nil
+}
+
+func (d *RsyncDestination) sshMkdirAll(ctx context.Context, remoteDir string) error {
+	client, err := d.sshClientForListing()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	session, err := client.NewSession()
+	if err != nil {
+		return fmt.Errorf("new ssh session: %w", err)
+	}
+	defer session.Close()
+
+	if err := session.Run(fmt.Sprintf("mkdir -p %s", remoteDir)); err != nil {
+		return fmt.Errorf("mkdir -p %s: %w", remoteDir, err)
 	}
 	return nil
 }

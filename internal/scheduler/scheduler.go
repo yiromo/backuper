@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"sync"
+	"time"
 
 	"backuper/internal/backup"
 	"backuper/internal/config"
@@ -44,13 +45,19 @@ func (s *Scheduler) RegisterAll() error {
 }
 
 func (s *Scheduler) register(sched config.ScheduleConfig) error {
+	// Compute the full target directory: e.g. "example/monthly/2026-04"
+	targetDir := sched.Target
+	if sd := sched.ScheduleDir(time.Now()); sd != "" {
+		targetDir = targetDir + "/" + sd
+	}
+
 	opts := backup.RunOptions{
-		Target:       sched.Target,
-		Destination:  sched.Destination,
-		Compress:     sched.Compress,
-		TmpDir:       sched.TmpDir,
-		Retention:    sched.Retention,
-		ScheduleType: sched.ScheduleType(),
+		Target:      sched.Target,
+		Destination: sched.Destination,
+		Compress:    sched.Compress,
+		TmpDir:      sched.TmpDir,
+		Retention:   sched.Retention,
+		TargetDir:   targetDir,
 	}
 	id, err := s.c.AddFunc(sched.Cron, func() {
 		s.logger.Info("cron job starting", "target", sched.Target, "dest", sched.Destination)
@@ -128,17 +135,18 @@ func (s *Scheduler) RunNow(ctx context.Context, targetName, destName string, log
 
 	// Try to match a schedule for options (compress, retention, etc.).
 	opts := backup.RunOptions{
-		Target:       targetName,
-		Destination:  destName,
-		Compress:     "gzip",
-		ScheduleType: config.ScheduleTypeCustom,
+		Target:      targetName,
+		Destination: destName,
+		Compress:    "gzip",
 	}
 	for _, sched := range s.cfg.Schedules {
 		if sched.Target == tgtCfg.Name && sched.Destination == dstCfg.Name {
 			opts.Compress = sched.Compress
 			opts.TmpDir = sched.TmpDir
 			opts.Retention = sched.Retention
-			opts.ScheduleType = sched.ScheduleType()
+			if sd := sched.ScheduleDir(time.Now()); sd != "" {
+				opts.TargetDir = tgtCfg.Name + "/" + sd
+			}
 			break
 		}
 	}
