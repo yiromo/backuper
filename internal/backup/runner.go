@@ -107,7 +107,7 @@ func (r *Runner) Run(ctx context.Context, opts RunOptions, logW io.Writer) (*Rec
 		tmpDir = os.TempDir()
 	}
 	ts := start.Format("2006-01-02_15-04")
-	ext := ".sql"
+	ext := tgt.FileExt()
 	compress := strings.ToLower(opts.Compress)
 	if compress == "" {
 		compress = "gzip"

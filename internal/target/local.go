@@ -21,7 +21,8 @@ func newLocal(cfg *config.TargetConfig) *LocalTarget {
 }
 
 func (t *LocalTarget) Name() string { return t.cfg.Name }
-func (t *LocalTarget) Type() string { return "local" }
+func (t *LocalTarget) Type() string    { return "local" }
+func (t *LocalTarget) FileExt() string { return ".sql" }
 
 func (t *LocalTarget) GetPassword(_ context.Context, store secrets.Store) (string, error) {
 	if t.cfg.SecretRef == "" {

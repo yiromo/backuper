@@ -29,13 +29,15 @@ type NotificationConfig struct {
 
 type TargetConfig struct {
 	Name        string        `yaml:"name"`
-	Type        string        `yaml:"type"`         // "kubernetes" | "local"
+	Type        string        `yaml:"type"`         // "kubernetes" | "local" | "clickhouse"
 	Namespace   string        `yaml:"namespace"`    // k8s only
 	PodSelector string        `yaml:"pod_selector"` // k8s only, regex
 	DBUser      string        `yaml:"db_user"`
 	DBName      string        `yaml:"db_name"`    // local only; empty = pg_dumpall
 	SecretRef   string        `yaml:"secret_ref"` // key in secrets store
 	K8sSecret   *K8sSecretRef `yaml:"k8s_secret,omitempty"`
+	Host        string        `yaml:"host,omitempty"` // clickhouse: server host
+	Port        string        `yaml:"port,omitempty"` // clickhouse: server port
 }
 
 type K8sSecretRef struct {
@@ -197,8 +199,18 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("target %q: pod_selector required for kubernetes type", t.Name)
 			}
 		case "local":
+		case "clickhouse":
+			if t.DBName == "" {
+				return fmt.Errorf("target %q: db_name is required for clickhouse type", t.Name)
+			}
+			if t.Host == "" && t.Namespace == "" {
+				return fmt.Errorf("target %q: host is required for clickhouse type (unless using k8s with localhost)", t.Name)
+			}
+			if t.Namespace != "" && t.PodSelector == "" {
+				return fmt.Errorf("target %q: pod_selector required when namespace is set for clickhouse type", t.Name)
+			}
 		default:
-			return fmt.Errorf("target %q: unknown type %q (must be kubernetes or local)", t.Name, t.Type)
+			return fmt.Errorf("target %q: unknown type %q (must be kubernetes, local, or clickhouse)", t.Name, t.Type)
 		}
 		if t.DBUser == "" {
 			return fmt.Errorf("target %q: db_user is required", t.Name)

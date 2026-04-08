@@ -15,6 +15,26 @@ targets:
     db_name: mydb                       # omit = pg_dumpall
     secret_ref: local_pg_creds
 
+  # ClickHouse backup (remote server via local clickhouse-client)
+  - name: ch-trends
+    type: clickhouse
+    host: "3.2.20.1"
+    db_user: example_user
+    db_name: example_db
+    secret_ref: ch_trends_password
+
+  # ClickHouse backup via Kubernetes pod exec
+  - name: ch-analytics
+    type: clickhouse
+    host: "clickhouse.analytics.svc.cluster.local"
+    namespace: analytics
+    pod_selector: "^clickhouse"
+    db_user: admin
+    db_name: analytics_db
+    k8s_secret:
+      name: clickhouse-credentials
+      key: admin-password
+
 destinations:
   - name: remote-1
     type: rsync                         # local | scp | rsync | s3

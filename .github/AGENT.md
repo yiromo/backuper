@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-**backuper** is a terminal-based (TUI) PostgreSQL backup manager designed for Kubernetes and local Postgres instances. It provides a k9s-style interactive interface for managing backups, with support for multiple destination types, cron-based scheduling with automatic directory organization, and age-encrypted secrets storage.
+**backuper** is a terminal-based (TUI) database backup manager designed for Kubernetes and local instances of PostgreSQL and ClickHouse. It provides a k9s-style interactive interface for managing backups, with support for multiple destination types, cron-based scheduling with automatic directory organization, and age-encrypted secrets storage.
 
 ### Key Features
 - **Interactive TUI** built with `bubbletea` (Charm library)
-- **Targets**: Kubernetes pod exec (`pg_dumpall`) or local `pg_dump`/`pg_dumpall`
+- **Targets**: Kubernetes pod exec (`pg_dumpall`) or local `pg_dump`/`pg_dumpall` for PostgreSQL; `clickhouse-client` (local or K8s pod exec) for ClickHouse
 - **Destinations**: Local directory, SCP, rsync over SSH, or S3-compatible storage (AWS S3, Minio, etc.)
 - **Scheduling**: Cron expressions with configurable retention (`keep_last`) and automatic schedule-based directory organization
 - **Notifications**: Telegram alerts on backup success/failure (configurable per notification)
@@ -22,9 +22,10 @@ internal/
   config/config.go            - YAML config loading, validation, saving
                               - ScheduleType: automatic derivation from cron expression
   target/                     - Backup source abstraction
-    target.go                 - Interface definition
+    target.go                 - Interface definition (Name, Type, FileExt, GetPassword, Dump)
     kubernetes.go             - K8s pod exec backup (client-go)
     local.go                  - Local pg_dump/pg_dumpall
+    clickhouse.go             - ClickHouse backup (local or K8s pod exec)
   destination/                - Backup destination abstraction
     destination.go            - Interface definition
     local.go                  - Local filesystem copy
@@ -145,7 +146,8 @@ Backup files are automatically organized into subdirectories based on the cron e
 
 ## Development Conventions
 
-- **No external binaries**: Kubernetes backup uses client-go exec directly (no `kubectl` binary required)
+- **No external binaries for PostgreSQL**: Kubernetes backup uses client-go exec directly (no `kubectl` binary required). ClickHouse targets require `clickhouse-client` installed locally or in the target pod.
+- **ClickHouse backup format**: Schema via `SHOW CREATE TABLE` per table + data via `SELECT * FORMAT Native` per table, combined into a tar archive (`.tar.gz`). Restore: extract tar, run `schema.sql`, then `INSERT INTO table FORMAT Native` per table.
 - **Secrets never displayed**: The TUI and CLI never echo secret values
 - **Progress logging**: Dump progress is streamed via `progressWriter` with periodic MB markers
 - **Temp file cleanup**: Backup dumps to temp file first; cleaned up on failure or after successful transfer

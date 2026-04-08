@@ -42,7 +42,8 @@ func newKubernetes(cfg *config.TargetConfig) (*KubernetesTarget, error) {
 }
 
 func (t *KubernetesTarget) Name() string { return t.cfg.Name }
-func (t *KubernetesTarget) Type() string { return "kubernetes" }
+func (t *KubernetesTarget) Type() string    { return "kubernetes" }
+func (t *KubernetesTarget) FileExt() string { return ".sql" }
 
 func (t *KubernetesTarget) GetPassword(ctx context.Context, store secrets.Store) (string, error) {
 	if t.cfg.K8sSecret != nil {

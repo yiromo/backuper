@@ -13,6 +13,7 @@ import (
 type Target interface {
 	Name() string
 	Type() string
+	FileExt() string
 	GetPassword(ctx context.Context, store secrets.Store) (string, error)
 	Dump(ctx context.Context, w io.Writer, password string) error
 }
@@ -23,6 +24,8 @@ func New(cfg *config.TargetConfig) (Target, error) {
 		return newKubernetes(cfg)
 	case "local":
 		return newLocal(cfg), nil
+	case "clickhouse":
+		return newClickHouse(cfg)
 	default:
 		return nil, fmt.Errorf("unknown target type %q", cfg.Type)
 	}
