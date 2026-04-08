@@ -28,6 +28,8 @@ func New(cfg *config.DestinationConfig, store secrets.Store) (Destination, error
 		return newSCP(cfg, store)
 	case "rsync":
 		return newRsync(cfg, store), nil
+	case "s3":
+		return newS3(cfg, store)
 	default:
 		return nil, fmt.Errorf("unknown destination type %q", cfg.Type)
 	}

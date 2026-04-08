@@ -7,7 +7,7 @@
 ### Key Features
 - **Interactive TUI** built with `bubbletea` (Charm library)
 - **Targets**: Kubernetes pod exec (`pg_dumpall`) or local `pg_dump`/`pg_dumpall`
-- **Destinations**: Local directory, SCP, or rsync over SSH
+- **Destinations**: Local directory, SCP, rsync over SSH, or S3-compatible storage (AWS S3, Minio, etc.)
 - **Scheduling**: Cron expressions with configurable retention (`keep_last`) and automatic schedule-based directory organization
 - **Notifications**: Telegram alerts on backup success/failure (configurable per notification)
 - **Secrets**: Age-encrypted store; values never displayed in the UI
@@ -30,6 +30,7 @@ internal/
     local.go                  - Local filesystem copy
     scp.go                    - SCP transfer
     rsync.go                  - Rsync over SSH
+    s3.go                     - S3-compatible storage (AWS S3, Minio, etc.)
   notify/                     - Post-backup notification abstraction
     notify.go                 - Notifier factory (routes by type)
     telegram.go               - Telegram Bot API notifier
@@ -110,6 +111,7 @@ See `configs/backuper.yaml.example` for a full example.
 | Scheduling | [robfig/cron](https://github.com/robfig/cron) v3 |
 | Database | [modernc/sqlite](https://gitlab.com/cznic/sqlite) (pure-Go) |
 | Config | [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) |
+| S3 Storage | [minio/minio-go](https://github.com/minio/minio-go) v7 (S3-compatible storage) |
 
 ## Data Files
 

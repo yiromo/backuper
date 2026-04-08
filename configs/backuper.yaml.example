@@ -17,7 +17,7 @@ targets:
 
 destinations:
   - name: remote-1
-    type: rsync                         # local | scp | rsync
+    type: rsync                         # local | scp | rsync | s3
     host: 3.73.13.3
     user: root
     remote_path: /root/backups/
@@ -28,6 +28,38 @@ destinations:
   - name: local-archive
     type: local
     path: /mnt/backups/
+
+  # AWS S3 destination
+  - name: aws-backups
+    type: s3
+    bucket: my-backup-bucket
+    region: us-east-1
+    remote_path: postgres-backups        # prefix for objects in bucket
+    use_ssl: true
+    access_key_ref: aws_access_key
+    secret_key_ref: aws_secret_key
+
+  # Minio destination (self-hosted S3-compatible storage)
+  - name: minio-backups
+    type: s3
+    bucket: backups
+    endpoint: minio.example.com:9000    # custom Minio endpoint
+    region: us-east-1                    # optional for Minio
+    remote_path: postgres-backups
+    use_ssl: false                       # set to true if Minio uses HTTPS
+    access_key_ref: minio_access_key
+    secret_key_ref: minio_secret_key
+
+  # AWS S3 with temporary credentials (session token)
+  - name: aws-temp-creds
+    type: s3
+    bucket: my-backup-bucket
+    region: eu-west-1
+    remote_path: postgres-backups
+    use_ssl: true
+    access_key_ref: aws_temp_access_key
+    secret_key_ref: aws_temp_secret_key
+    session_token_ref: aws_session_token # for temporary credentials
 
 schedules:
   - target: exampledb
@@ -45,6 +77,15 @@ schedules:
     tmp_dir: /tmp
     retention:
       keep_last: 14
+
+  # Example: Backup to S3 daily
+  - target: exampledb
+    destination: aws-backups
+    cron: "0 4 * * *"
+    compress: gzip
+    tmp_dir: /tmp
+    retention:
+      keep_last: 30
 
 notifications:
   - name: telegram-alerts

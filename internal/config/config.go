@@ -45,7 +45,7 @@ type K8sSecretRef struct {
 
 type DestinationConfig struct {
 	Name       string `yaml:"name"`
-	Type       string `yaml:"type"`        // "local" | "scp" | "rsync"
+	Type       string `yaml:"type"`        // "local" | "scp" | "rsync" | "s3"
 	Host       string `yaml:"host"`        // scp/rsync
 	User       string `yaml:"user"`        // scp/rsync
 	RemotePath string `yaml:"remote_path"` // scp/rsync
@@ -53,6 +53,15 @@ type DestinationConfig struct {
 	Auth       string `yaml:"auth"`        // "key" | "password"
 	SSHKeyPath string `yaml:"ssh_key_path"`
 	SecretRef  string `yaml:"secret_ref"` // password if auth=password
+
+	// S3 specific fields (for AWS S3, Minio, and other S3-compatible storage)
+	Bucket          string `yaml:"bucket"`            // S3 bucket name
+	Endpoint        string `yaml:"endpoint"`          // S3 endpoint URL (for Minio/custom S3, empty for AWS)
+	Region          string `yaml:"region"`            // AWS region (e.g., us-east-1), optional for Minio
+	AccessKeyRef    string `yaml:"access_key_ref"`    // secret ref for access key ID
+	SecretKeyRef    string `yaml:"secret_key_ref"`    // secret ref for secret access key
+	SessionTokenRef string `yaml:"session_token_ref"` // secret ref for session token (optional)
+	UseSSL          bool   `yaml:"use_ssl"`           // use HTTPS for S3 connections (default: true)
 }
 
 type ScheduleConfig struct {
@@ -223,8 +232,15 @@ func (c *Config) Validate() error {
 			if d.RemotePath == "" {
 				return fmt.Errorf("destination %q: remote_path required for %s type", d.Name, d.Type)
 			}
+		case "s3":
+			if d.Bucket == "" {
+				return fmt.Errorf("destination %q: bucket required for s3 type", d.Name)
+			}
+			if d.AccessKeyRef == "" && d.SecretKeyRef == "" {
+				return fmt.Errorf("destination %q: at least one of access_key_ref or secret_key_ref required for s3 type", d.Name)
+			}
 		default:
-			return fmt.Errorf("destination %q: unknown type %q (must be local, scp, or rsync)", d.Name, d.Type)
+			return fmt.Errorf("destination %q: unknown type %q (must be local, scp, rsync, or s3)", d.Name, d.Type)
 		}
 	}
 
