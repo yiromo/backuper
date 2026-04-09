@@ -114,10 +114,9 @@ func (m DashboardModel) Update(msg tea.Msg) (DashboardModel, tea.Cmd) {
 }
 
 func (m DashboardModel) View() string {
-	title := styleTitle.Render("Dashboard")
 	help := styleHelp.Render("[enter] run now  [↑/↓] navigate")
 	return lipgloss.JoinVertical(lipgloss.Left,
-		title,
+		renderLogo(),
 		m.table.View(),
 		help,
 	)
@@ -165,7 +164,7 @@ func (m DashboardModel) buildRows(width int) []table.Row {
 		}
 
 		if width >= 80 {
-			rows = append(rows, table.Row{tgt.Name, tgt.Type, lastRun, status, nextRun})
+			rows = append(rows, table.Row{tgt.Name, tgt.Engine + "/" + tgt.Runtime, lastRun, status, nextRun})
 		} else if width >= 60 {
 			rows = append(rows, table.Row{tgt.Name, lastRun, status, nextRun})
 		} else if width >= 40 {

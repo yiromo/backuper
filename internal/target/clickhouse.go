@@ -32,7 +32,7 @@ type ClickHouseTarget struct {
 
 func newClickHouse(cfg *config.TargetConfig) (*ClickHouseTarget, error) {
 	t := &ClickHouseTarget{cfg: cfg}
-	if cfg.Namespace != "" {
+	if cfg.Runtime == "kubernetes" {
 		loadRules := clientcmd.NewDefaultClientConfigLoadingRules()
 		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			loadRules, &clientcmd.ConfigOverrides{},
@@ -52,8 +52,14 @@ func newClickHouse(cfg *config.TargetConfig) (*ClickHouseTarget, error) {
 }
 
 func (t *ClickHouseTarget) Name() string     { return t.cfg.Name }
-func (t *ClickHouseTarget) Type() string     { return "clickhouse" }
+func (t *ClickHouseTarget) Engine() string   { return "clickhouse" }
+func (t *ClickHouseTarget) Runtime() string  { return t.cfg.Runtime }
 func (t *ClickHouseTarget) FileExt() string  { return ".tar" }
+
+// isLocal returns true for local and remote runtimes (both run client binary locally).
+func (t *ClickHouseTarget) isLocal() bool {
+	return t.cfg.Runtime != "kubernetes"
+}
 
 func (t *ClickHouseTarget) GetPassword(ctx context.Context, store secrets.Store) (string, error) {
 	if t.cfg.K8sSecret != nil {
@@ -76,7 +82,7 @@ func (t *ClickHouseTarget) GetPassword(ctx context.Context, store secrets.Store)
 }
 
 func (t *ClickHouseTarget) Dump(ctx context.Context, w io.Writer, password string) error {
-	if t.cfg.Namespace != "" {
+	if !t.isLocal() {
 		return t.dumpK8s(ctx, w, password)
 	}
 	return t.dumpLocal(ctx, w, password)

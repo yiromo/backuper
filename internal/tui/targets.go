@@ -105,9 +105,9 @@ func (m TargetsModel) buildRows(width int) []table.Row {
 			ns = t.DBName
 		}
 		if width >= 80 {
-			rows = append(rows, table.Row{t.Name, t.Type, ns, t.DBUser, t.SecretRef})
+			rows = append(rows, table.Row{t.Name, t.Engine + "/" + t.Runtime, ns, t.DBUser, t.SecretRef})
 		} else if width >= 60 {
-			rows = append(rows, table.Row{t.Name, t.Type, ns, t.SecretRef})
+			rows = append(rows, table.Row{t.Name, t.Engine + "/" + t.Runtime, ns, t.SecretRef})
 		} else if width >= 40 {
 			rows = append(rows, table.Row{t.Name, ns, t.SecretRef})
 		} else {
@@ -228,22 +228,26 @@ func (m TargetsModel) saveForm() error {
 	if vals[0] == "" {
 		return fmt.Errorf("name is required")
 	}
-	if vals[1] != "kubernetes" && vals[1] != "local" && vals[1] != "clickhouse" {
-		return fmt.Errorf("type must be 'kubernetes', 'local', or 'clickhouse'")
+	if vals[1] != "postgres" && vals[1] != "clickhouse" {
+		return fmt.Errorf("engine must be 'postgres' or 'clickhouse'")
 	}
-	if vals[4] == "" {
+	if vals[2] != "local" && vals[2] != "remote" && vals[2] != "kubernetes" {
+		return fmt.Errorf("runtime must be 'local', 'remote', or 'kubernetes'")
+	}
+	if vals[5] == "" {
 		return fmt.Errorf("db_user is required")
 	}
 	tgt := config.TargetConfig{
 		Name:        vals[0],
-		Type:        vals[1],
-		Namespace:   vals[2],
-		PodSelector: vals[3],
-		DBUser:      vals[4],
-		DBName:      vals[5],
-		SecretRef:   vals[6],
-		Host:        vals[7],
-		Port:        vals[8],
+		Engine:      vals[1],
+		Runtime:     vals[2],
+		Namespace:   vals[3],
+		PodSelector: vals[4],
+		DBUser:      vals[5],
+		DBName:      vals[6],
+		SecretRef:   vals[7],
+		Host:        vals[8],
+		Port:        vals[9],
 	}
 	if m.form.editIdx >= 0 && m.form.editIdx < len(m.app.cfg.Targets) {
 		m.app.cfg.Targets[m.form.editIdx] = tgt
@@ -315,18 +319,19 @@ func (m *TargetsModel) resize(w, h int) TargetsModel {
 }
 
 func newTargetForm(tgt *config.TargetConfig, editIdx int) targetForm {
-	labels := []string{"name", "type (kubernetes/local/clickhouse)", "namespace", "pod_selector", "db_user", "db_name", "secret_ref", "host", "port"}
+	labels := []string{"name", "engine (postgres/clickhouse)", "runtime (local/remote/kubernetes)", "namespace", "pod_selector", "db_user", "db_name", "secret_ref", "host", "port"}
 	values := make([]string, len(labels))
 	if tgt != nil {
 		values[0] = tgt.Name
-		values[1] = tgt.Type
-		values[2] = tgt.Namespace
-		values[3] = tgt.PodSelector
-		values[4] = tgt.DBUser
-		values[5] = tgt.DBName
-		values[6] = tgt.SecretRef
-		values[7] = tgt.Host
-		values[8] = tgt.Port
+		values[1] = tgt.Engine
+		values[2] = tgt.Runtime
+		values[3] = tgt.Namespace
+		values[4] = tgt.PodSelector
+		values[5] = tgt.DBUser
+		values[6] = tgt.DBName
+		values[7] = tgt.SecretRef
+		values[8] = tgt.Host
+		values[9] = tgt.Port
 	}
 	fields := make([]textinput.Model, len(labels))
 	for i := range fields {

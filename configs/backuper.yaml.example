@@ -1,6 +1,8 @@
 targets:
+  # PostgreSQL in Kubernetes
   - name: exampledb
-    type: kubernetes
+    engine: postgres
+    runtime: kubernetes
     namespace: default
     pod_selector: "^exampledb"
     db_user: postgres
@@ -9,23 +11,27 @@ targets:
       name: examplepostgres-secret
       key: superUserPassword
 
+  # PostgreSQL local
   - name: local-pg
-    type: local
+    engine: postgres
+    runtime: local
     db_user: postgres
     db_name: mydb                       # omit = pg_dumpall
     secret_ref: local_pg_creds
 
-  # ClickHouse backup (remote server via local clickhouse-client)
-  - name: ch-trends
-    type: clickhouse
+  # ClickHouse via local clickhouse-client
+  - name: ch-example
+    engine: clickhouse
+    runtime: remote
     host: "3.2.20.1"
     db_user: example_user
     db_name: example_db
-    secret_ref: ch_trends_password
+    secret_ref: ch_example_password
 
-  # ClickHouse backup via Kubernetes pod exec
+  # ClickHouse via Kubernetes pod exec
   - name: ch-analytics
-    type: clickhouse
+    engine: clickhouse
+    runtime: kubernetes
     host: "clickhouse.analytics.svc.cluster.local"
     namespace: analytics
     pod_selector: "^clickhouse"

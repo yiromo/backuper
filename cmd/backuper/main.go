@@ -409,7 +409,7 @@ func runListTargets(cmd *cobra.Command, args []string) error {
 		if ns == "" {
 			ns = t.DBName
 		}
-		fmt.Printf("%-20s  %-12s  %-18s  %s\n", t.Name, t.Type, ns, t.SecretRef)
+		fmt.Printf("%-20s  %-8s %-10s  %-18s  %s\n", t.Name, t.Engine, t.Runtime, ns, t.SecretRef)
 	}
 	return nil
 }

@@ -6,7 +6,9 @@
 
 ### Key Features
 - **Interactive TUI** built with `bubbletea` (Charm library)
-- **Targets**: Kubernetes pod exec (`pg_dumpall`) or local `pg_dump`/`pg_dumpall` for PostgreSQL; `clickhouse-client` (local or K8s pod exec) for ClickHouse
+- **Targets**: Configured with `engine` (postgres, clickhouse) + `runtime` (local, remote, kubernetes) — separates database technology from execution environment
+  - PostgreSQL: Kubernetes pod exec (`pg_dumpall`) or local `pg_dump`/`pg_dumpall`
+  - ClickHouse: `clickhouse-client` (local, remote, or K8s pod exec) — schema + Native format data in tar archive
 - **Destinations**: Local directory, SCP, rsync over SSH, or S3-compatible storage (AWS S3, Minio, etc.)
 - **Scheduling**: Cron expressions with configurable retention (`keep_last`) and automatic schedule-based directory organization
 - **Notifications**: Telegram alerts on backup success/failure (configurable per notification)
@@ -22,9 +24,9 @@ internal/
   config/config.go            - YAML config loading, validation, saving
                               - ScheduleType: automatic derivation from cron expression
   target/                     - Backup source abstraction
-    target.go                 - Interface definition (Name, Type, FileExt, GetPassword, Dump)
-    kubernetes.go             - K8s pod exec backup (client-go)
-    local.go                  - Local pg_dump/pg_dumpall
+    target.go                 - Interface definition (Name, Engine, Runtime, FileExt, GetPassword, Dump)
+    kubernetes.go             - PostgreSQL via K8s pod exec (client-go)
+    local.go                  - PostgreSQL via local pg_dump/pg_dumpall
     clickhouse.go             - ClickHouse backup (local or K8s pod exec)
   destination/                - Backup destination abstraction
     destination.go            - Interface definition

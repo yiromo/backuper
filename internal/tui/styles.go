@@ -77,6 +77,15 @@ func navItem(key, label string, active bool) string {
 func statusSuccess(s string) string { return styleSuccess.Render(s) }
 func statusError(s string) string   { return styleError.Render(s) }
 
+func renderLogo() string {
+	return lipgloss.NewStyle().
+		Foreground(colorPrimary).
+		Bold(true).
+		Render("bkp") +
+		lipgloss.NewStyle().Foreground(colorMuted).Render(" backuper") +
+		"\n"
+}
+
 func humanBytes(b int64) string {
 	const unit = 1024
 	if b < unit {

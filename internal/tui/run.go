@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -27,6 +28,8 @@ type RunModel struct {
 	step   runStep
 	width  int
 	height int
+
+	spinnerFrame int
 
 	targetIdx int
 	destIdx   int
@@ -61,6 +64,9 @@ type backupDoneMsg struct {
 	rec *backup.Record
 	err error
 }
+type spinnerTickMsg struct{}
+
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 func waitForLog(ch chan string) tea.Cmd {
 	return func() tea.Msg {
@@ -89,10 +95,19 @@ func (m RunModel) Update(msg tea.Msg) (RunModel, tea.Cmd) {
 		m.lastRec = msg.rec
 		m.lastErr = msg.err
 		m.step = runStepDone
+		m.spinnerFrame = 0
 		if msg.err != nil {
 			return m, setStatusErr("Backup failed: " + msg.err.Error())
 		}
 		return m, setStatus("Backup completed successfully.")
+
+	case spinnerTickMsg:
+		if m.running {
+			m.spinnerFrame = (m.spinnerFrame + 1) % len(spinnerFrames)
+			return m, tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
+				return spinnerTickMsg{}
+			})
+		}
 
 	case tea.KeyMsg:
 		switch m.step {
@@ -188,6 +203,9 @@ func (m RunModel) startBackup() (RunModel, tea.Cmd) {
 			return backupDoneMsg{rec: rec, err: err}
 		},
 		waitForLog(m.logCh),
+		tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
+			return spinnerTickMsg{}
+		}),
 	)
 }
 
@@ -209,7 +227,7 @@ func (m RunModel) viewPickTarget() string {
 	var sb strings.Builder
 	sb.WriteString(styleTitle.Render("Run Backup — Select Target") + "\n\n")
 	for i, t := range m.app.cfg.Targets {
-		name := fmt.Sprintf("%s (%s)", t.Name, t.Type)
+		name := fmt.Sprintf("%s (%s/%s)", t.Name, t.Engine, t.Runtime)
 		if i == m.targetIdx {
 			sb.WriteString(styleAccent.Render("  ▸ ") + lipgloss.NewStyle().Foreground(colorFg).Bold(true).Render(name) + "\n")
 		} else {
@@ -266,7 +284,8 @@ func (m RunModel) viewLog() string {
 		}
 	}
 
-	spinner := styleWarning.Render("● ") + styleMuted.Render("running...")
+	frame := spinnerFrames[m.spinnerFrame]
+	spinner := styleAccent.Render(frame+" ") + styleMuted.Render("running...")
 	return lipgloss.JoinVertical(lipgloss.Left,
 		styleTitle.Render(header),
 		"",

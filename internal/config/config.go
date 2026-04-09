@@ -29,12 +29,13 @@ type NotificationConfig struct {
 
 type TargetConfig struct {
 	Name        string        `yaml:"name"`
-	Type        string        `yaml:"type"`         // "kubernetes" | "local" | "clickhouse"
-	Namespace   string        `yaml:"namespace"`    // k8s only
-	PodSelector string        `yaml:"pod_selector"` // k8s only, regex
+	Engine      string        `yaml:"engine"`                // "postgres" | "clickhouse"
+	Runtime     string        `yaml:"runtime"`               // "local" | "kubernetes"
+	Namespace   string        `yaml:"namespace,omitempty"`   // runtime=kubernetes
+	PodSelector string        `yaml:"pod_selector,omitempty"` // runtime=kubernetes, regex
 	DBUser      string        `yaml:"db_user"`
-	DBName      string        `yaml:"db_name"`    // local only; empty = pg_dumpall
-	SecretRef   string        `yaml:"secret_ref"` // key in secrets store
+	DBName      string        `yaml:"db_name,omitempty"` // postgres: omit = pg_dumpall; clickhouse: required
+	SecretRef   string        `yaml:"secret_ref,omitempty"`
 	K8sSecret   *K8sSecretRef `yaml:"k8s_secret,omitempty"`
 	Host        string        `yaml:"host,omitempty"` // clickhouse: server host
 	Port        string        `yaml:"port,omitempty"` // clickhouse: server port
@@ -190,27 +191,35 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("targets[%d]: duplicate name %q", i, t.Name)
 		}
 		targetNames[t.Name] = true
-		switch t.Type {
-		case "kubernetes":
+		// Validate engine.
+		switch t.Engine {
+		case "postgres", "clickhouse":
+		default:
+			return fmt.Errorf("target %q: unknown engine %q (must be postgres or clickhouse)", t.Name, t.Engine)
+		}
+		// Validate runtime.
+		switch t.Runtime {
+		case "local", "remote", "kubernetes":
+		default:
+			return fmt.Errorf("target %q: unknown runtime %q (must be local, remote, or kubernetes)", t.Name, t.Runtime)
+		}
+		// Runtime-specific.
+		if t.Runtime == "kubernetes" {
 			if t.Namespace == "" {
-				return fmt.Errorf("target %q: namespace required for kubernetes type", t.Name)
+				return fmt.Errorf("target %q: namespace required for kubernetes runtime", t.Name)
 			}
 			if t.PodSelector == "" {
-				return fmt.Errorf("target %q: pod_selector required for kubernetes type", t.Name)
+				return fmt.Errorf("target %q: pod_selector required for kubernetes runtime", t.Name)
 			}
-		case "local":
-		case "clickhouse":
+		}
+		// Engine-specific.
+		if t.Engine == "clickhouse" {
 			if t.DBName == "" {
-				return fmt.Errorf("target %q: db_name is required for clickhouse type", t.Name)
+				return fmt.Errorf("target %q: db_name is required for clickhouse engine", t.Name)
 			}
-			if t.Host == "" && t.Namespace == "" {
-				return fmt.Errorf("target %q: host is required for clickhouse type (unless using k8s with localhost)", t.Name)
+			if t.Host == "" && t.Runtime != "kubernetes" {
+				return fmt.Errorf("target %q: host is required for clickhouse with %s runtime", t.Name, t.Runtime)
 			}
-			if t.Namespace != "" && t.PodSelector == "" {
-				return fmt.Errorf("target %q: pod_selector required when namespace is set for clickhouse type", t.Name)
-			}
-		default:
-			return fmt.Errorf("target %q: unknown type %q (must be kubernetes, local, or clickhouse)", t.Name, t.Type)
 		}
 		if t.DBUser == "" {
 			return fmt.Errorf("target %q: db_user is required", t.Name)
