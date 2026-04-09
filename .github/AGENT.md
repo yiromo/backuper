@@ -11,7 +11,7 @@
   - ClickHouse: `clickhouse-client` (local, remote, or K8s pod exec) — schema + Native format data in tar archive
 - **Destinations**: Local directory, SCP, rsync over SSH, or S3-compatible storage (AWS S3, Minio, etc.)
 - **Scheduling**: Cron expressions with configurable retention (`keep_last`) and automatic schedule-based directory organization
-- **Notifications**: Telegram alerts on backup success/failure (configurable per notification)
+- **Notifications**: Telegram or SMTP email alerts on backup success/failure (configurable per notification)
 - **Secrets**: Age-encrypted store; values never displayed in the UI
 - **History**: SQLite log of every backup run with size, duration, and output
 - **Daemon**: Headless mode with encrypted passphrase for unattended operation
@@ -37,6 +37,7 @@ internal/
   notify/                     - Post-backup notification abstraction
     notify.go                 - Notifier factory (routes by type)
     telegram.go               - Telegram Bot API notifier
+    smtp.go                   - SMTP email notifier (STARTTLS, auth)
   backup/
     runner.go                 - Orchestrates dump → compress → transfer → retention → notify
     history.go                - SQLite history tracking (modernc/sqlite)
@@ -151,12 +152,13 @@ Backup files are automatically organized into subdirectories based on the cron e
 - **No external binaries for PostgreSQL**: Kubernetes backup uses client-go exec directly (no `kubectl` binary required). ClickHouse targets require `clickhouse-client` installed locally or in the target pod.
 - **ClickHouse backup format**: Schema via `SHOW CREATE TABLE` per table + data via `SELECT * FORMAT Native` per table, combined into a tar archive (`.tar.gz`). Restore: extract tar, run `schema.sql`, then `INSERT INTO table FORMAT Native` per table.
 - **Secrets never displayed**: The TUI and CLI never echo secret values
+- **Passphrase strength**: New stores require 12+ chars with mixed case, digit, and symbol; confirmation prompt on creation
 - **Progress logging**: Dump progress is streamed via `progressWriter` with periodic MB markers
 - **Temp file cleanup**: Backup dumps to temp file first; cleaned up on failure or after successful transfer
 - **Retention**: Sorts files by name (date-embedded) and deletes oldest beyond `keep_last`
 - **Error handling**: Failures are recorded in history with error messages
 - **Notifications**: Dispatched after history is persisted; failures are logged but never block the backup
-- **Daemon passphrase**: Automatically encrypted with age X25519 when `--save-passphrase` is used
+- **Daemon passphrase**: Automatically encrypted with age X25519 when `--save-passphrase` is used. Daemon uses saved encrypted passphrase without prompting; TUI and other interactive commands always prompt the user
 
 ## CI/CD
 
