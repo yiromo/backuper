@@ -51,7 +51,7 @@ Run without sub-commands to open the interactive TUI.`,
 		if cmd.Name() == "validate" {
 			return nil
 		}
-		return initGlobals()
+		return initGlobals(cmd.Name() == "daemon")
 	}
 
 	daemonCmd := &cobra.Command{
@@ -147,7 +147,7 @@ secrets passphrase so the daemon can start unattended on reboot.`,
 	}
 }
 
-func initGlobals() error {
+func initGlobals(daemonMode bool) error {
 	// Logger — write to file, not stdout (stdout belongs to TUI).
 	home, _ := os.UserHomeDir()
 	logPath := filepath.Join(home, ".config", "backuper", "backuper.log")
@@ -171,7 +171,7 @@ func initGlobals() error {
 	}
 
 	storePath := secrets.DefaultStorePath()
-	passphrase, err := promptPassphrase(storePath)
+	passphrase, err := promptPassphrase(storePath, daemonMode)
 	if err != nil {
 		return fmt.Errorf("secrets passphrase: %w", err)
 	}
@@ -191,14 +191,15 @@ func initGlobals() error {
 	return nil
 }
 
-func promptPassphrase(storePath string) (string, error) {
-	// 0. Saved (encrypted) passphrase file — auto-detected for daemon mode.
-	saved, err := loadSavedPassphrase()
-	if err != nil {
-		return "", err
-	}
-	if saved != "" {
-		return saved, nil
+func promptPassphrase(storePath string, daemonMode bool) (string, error) {
+	if daemonMode {
+		saved, err := loadSavedPassphrase()
+		if err != nil {
+			return "", err
+		}
+		if saved != "" {
+			return saved, nil
+		}
 	}
 
 	// 1. Environment variable.
@@ -216,15 +217,30 @@ func promptPassphrase(storePath string) (string, error) {
 	}
 
 	// 3. Interactive prompt.
+	isNew := !secrets.Exists(storePath)
 	prompt := "Enter secrets passphrase"
-	if !secrets.Exists(storePath) {
-		prompt = "Create secrets passphrase (new store)"
+	if isNew {
+		prompt = "Create secrets passphrase (min 12 chars, mixed case, digit, symbol)"
 	}
 	fmt.Fprintf(os.Stderr, "%s: ", prompt)
 	pass, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Fprintln(os.Stderr)
 	if err != nil {
 		return "", fmt.Errorf("reading passphrase: %w", err)
+	}
+	if isNew {
+		if err := secrets.ValidatePassphrase(string(pass)); err != nil {
+			return "", fmt.Errorf("passphrase too weak: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "Confirm passphrase: ")
+		confirm, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Fprintln(os.Stderr)
+		if err != nil {
+			return "", fmt.Errorf("reading confirmation: %w", err)
+		}
+		if string(pass) != string(confirm) {
+			return "", fmt.Errorf("passphrases do not match")
+		}
 	}
 	return string(pass), nil
 }

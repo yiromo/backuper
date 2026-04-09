@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"unicode"
 
 	"filippo.io/age"
 )
@@ -37,7 +38,10 @@ func NewAgeStore(path, passphrase string) (*AgeStore, error) {
 	}
 	if err := s.load(); err != nil {
 		if os.IsNotExist(err) {
-			return s, nil // new store — start empty
+			if err := s.save(); err != nil {
+				return nil, fmt.Errorf("creating secrets store: %w", err)
+			}
+			return s, nil
 		}
 		return nil, err
 	}
@@ -123,4 +127,36 @@ func (s *AgeStore) List() ([]string, error) {
 func Exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func ValidatePassphrase(passphrase string) error {
+	if len(passphrase) < 12 {
+		return fmt.Errorf("passphrase must be at least 12 characters")
+	}
+	var hasUpper, hasLower, hasDigit, hasSymbol bool
+	for _, r := range passphrase {
+		switch {
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		case unicode.IsPunct(r) || unicode.IsSymbol(r):
+			hasSymbol = true
+		}
+	}
+	if !hasUpper {
+		return fmt.Errorf("passphrase must contain at least one uppercase letter")
+	}
+	if !hasLower {
+		return fmt.Errorf("passphrase must contain at least one lowercase letter")
+	}
+	if !hasDigit {
+		return fmt.Errorf("passphrase must contain at least one digit")
+	}
+	if !hasSymbol {
+		return fmt.Errorf("passphrase must contain at least one symbol")
+	}
+	return nil
 }
