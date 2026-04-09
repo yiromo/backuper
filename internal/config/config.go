@@ -19,12 +19,22 @@ type Config struct {
 
 type NotificationConfig struct {
 	Name        string `yaml:"name"`
-	Type        string `yaml:"type"`          // "telegram"
-	BotTokenRef string `yaml:"bot_token_ref"` // secret ref for bot token
-	ChatID      string `yaml:"chat_id"`       // group/chat ID
+	Type        string `yaml:"type"`          // "telegram" | "smtp"
+	BotTokenRef string `yaml:"bot_token_ref"` // secret ref for bot token (telegram)
+	ChatID      string `yaml:"chat_id"`       // group/chat ID (telegram)
 	ThreadID    int    `yaml:"thread_id,omitempty"`
 	OnSuccess   bool   `yaml:"on_success"`
 	OnFailure   bool   `yaml:"on_failure"`
+
+	// SMTP notification fields
+	SMTPHost     string   `yaml:"smtp_host"`               // SMTP server hostname
+	SMTPPort     int      `yaml:"smtp_port"`               // SMTP server port (default 587)
+	From         string   `yaml:"from"`                    // sender email address
+	To           []string `yaml:"to"`                      // recipient email addresses
+	Username     string   `yaml:"username,omitempty"`      // SMTP auth username (defaults to from)
+	PasswordRef  string   `yaml:"password_ref"`            // secret ref for SMTP password
+	UseTLS       bool     `yaml:"use_tls,omitempty"`       // use STARTTLS (default true for port 587)
+	InsecureTLS  bool     `yaml:"insecure_tls,omitempty"`  // skip TLS certificate verification
 }
 
 type TargetConfig struct {

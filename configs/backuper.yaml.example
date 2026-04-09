@@ -122,6 +122,22 @@ notifications:
     on_success: true
     on_failure: true
 
+  # Email notification via SMTP
+  # - name: email-alerts
+  #   type: smtp
+  #   smtp_host: smtp.example.com
+  #   smtp_port: 587                    # default 587, use 465 for implicit TLS
+  #   from: backuper@example.com
+  #   to:
+  #     - admin@example.com
+  #     - ops@example.com
+  #   username: backuper@example.com     # optional, defaults to from
+  #   password_ref: smtp_password        # secret ref (backuper secrets set smtp_password)
+  #   use_tls: true                      # STARTTLS (default true for port 587)
+  #   insecure_tls: false                # skip TLS cert verification (for self-signed)
+  #   on_success: true
+  #   on_failure: true
+
 # Schedule types are automatically derived from the cron expression:
 #   Daily:   "X Y * * *"         → daily/
 #   Weekly:  "X Y * * 0-6"       → weekly/YYYY-Www/
