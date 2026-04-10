@@ -1,5 +1,40 @@
-.qwen
-.claude
+# AI tools
+.qwen/
+.claude/
 
-data.yaml
-trends.yaml
+# Real config files (use configs/backuper.yaml.example as template)
+configs/data.yaml
+configs/trends.yaml
+config.yaml
+
+# Compiled binaries
+backuper
+backuper-linux-amd64
+backuper-linux-arm64
+backuper-darwin-amd64
+backuper-darwin-arm64
+backuper-windows-amd64.exe
+
+# Runtime data files
+*.age
+*.db
+*.log
+.backuper_passphrase
+.backuper_key
+
+# Environment files
+.env
+.env.*
+
+# Build output
+dist/
+bin/
+vendor/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
