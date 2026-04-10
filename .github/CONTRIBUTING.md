@@ -22,7 +22,7 @@ Thank you for considering a contribution! Here's everything you need to get star
 **Requirements**: Go 1.22+
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/backuper.git
+git clone https://github.com/yiromo/backuper.git
 cd backuper
 go build ./...
 go test ./...
@@ -32,7 +32,7 @@ No external services required for unit tests. Integration tests (Kubernetes, S3)
 
 ## What to work on
 
-- Check [Issues](https://github.com/YOUR_USERNAME/backuper/issues) for open tasks
+- Check [Issues](https://github.com/yiromo/backuper/issues) for open tasks
 - Features tagged `good first issue` are a great starting point
 - Bug reports and documentation improvements are always welcome
 
