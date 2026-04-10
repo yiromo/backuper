@@ -228,8 +228,8 @@ func (m TargetsModel) saveForm() error {
 	if vals[0] == "" {
 		return fmt.Errorf("name is required")
 	}
-	if vals[1] != "postgres" && vals[1] != "clickhouse" {
-		return fmt.Errorf("engine must be 'postgres' or 'clickhouse'")
+	if vals[1] != "postgres" && vals[1] != "clickhouse" && vals[1] != "redis" {
+		return fmt.Errorf("engine must be 'postgres', 'clickhouse', or 'redis'")
 	}
 	if vals[2] != "local" && vals[2] != "remote" && vals[2] != "kubernetes" {
 		return fmt.Errorf("runtime must be 'local', 'remote', or 'kubernetes'")
@@ -319,7 +319,7 @@ func (m *TargetsModel) resize(w, h int) TargetsModel {
 }
 
 func newTargetForm(tgt *config.TargetConfig, editIdx int) targetForm {
-	labels := []string{"name", "engine (postgres/clickhouse)", "runtime (local/remote/kubernetes)", "namespace", "pod_selector", "db_user", "db_name", "secret_ref", "host", "port"}
+	labels := []string{"name", "engine (postgres/clickhouse/redis)", "runtime (local/remote/kubernetes)", "namespace", "pod_selector", "db_user", "db_name", "secret_ref", "host", "port"}
 	values := make([]string, len(labels))
 	if tgt != nil {
 		values[0] = tgt.Name

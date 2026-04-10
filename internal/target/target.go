@@ -28,6 +28,8 @@ func New(cfg *config.TargetConfig) (Target, error) {
 		return newLocal(cfg), nil
 	case "clickhouse":
 		return newClickHouse(cfg)
+	case "redis":
+		return newRedisTarget(cfg)
 	default:
 		return nil, fmt.Errorf("unknown engine %q", cfg.Engine)
 	}

@@ -2,13 +2,14 @@
 
 ## Project Overview
 
-**backuper** is a terminal-based (TUI) database backup manager designed for Kubernetes and local instances of PostgreSQL and ClickHouse. It provides a k9s-style interactive interface for managing backups, with support for multiple destination types, cron-based scheduling with automatic directory organization, and age-encrypted secrets storage.
+**backuper** is a terminal-based (TUI) database backup manager designed for Kubernetes and local instances of PostgreSQL, ClickHouse, and Redis. It provides a k9s-style interactive interface for managing backups, with support for multiple destination types, cron-based scheduling with automatic directory organization, and age-encrypted secrets storage.
 
 ### Key Features
 - **Interactive TUI** built with `bubbletea` (Charm library)
-- **Targets**: Configured with `engine` (postgres, clickhouse) + `runtime` (local, remote, kubernetes) — separates database technology from execution environment
+- **Targets**: Configured with `engine` (postgres, clickhouse, redis) + `runtime` (local, remote, kubernetes) — separates database technology from execution environment
   - PostgreSQL: Kubernetes pod exec (`pg_dumpall`) or local `pg_dump`/`pg_dumpall`
   - ClickHouse: `clickhouse-client` (local, remote, or K8s pod exec) — schema + Native format data in tar archive
+  - Redis: `redis-cli --rdb` (local, remote, or K8s pod exec) — RDB dump file
 - **Destinations**: Local directory, SCP, rsync over SSH, or S3-compatible storage (AWS S3, Minio, etc.)
 - **Scheduling**: Cron expressions with configurable retention (`keep_last`) and automatic schedule-based directory organization
 - **Notifications**: Telegram or SMTP email alerts on backup success/failure (configurable per notification)
@@ -28,6 +29,7 @@ internal/
     kubernetes.go             - PostgreSQL via K8s pod exec (client-go)
     local.go                  - PostgreSQL via local pg_dump/pg_dumpall
     clickhouse.go             - ClickHouse backup (local or K8s pod exec)
+    redis.go                  - Redis backup via redis-cli --rdb (local, remote, or K8s pod exec)
   destination/                - Backup destination abstraction
     destination.go            - Interface definition
     local.go                  - Local filesystem copy
@@ -149,7 +151,7 @@ Backup files are automatically organized into subdirectories based on the cron e
 
 ## Development Conventions
 
-- **No external binaries for PostgreSQL**: Kubernetes backup uses client-go exec directly (no `kubectl` binary required). ClickHouse targets require `clickhouse-client` installed locally or in the target pod.
+- **No external binaries for PostgreSQL**: Kubernetes backup uses client-go exec directly (no `kubectl` binary required). ClickHouse targets require `clickhouse-client` installed locally or in the target pod. Redis targets require `redis-cli` installed locally or in the target pod.
 - **ClickHouse backup format**: Schema via `SHOW CREATE TABLE` per table + data via `SELECT * FORMAT Native` per table, combined into a tar archive (`.tar.gz`). Restore: extract tar, run `schema.sql`, then `INSERT INTO table FORMAT Native` per table.
 - **Secrets never displayed**: The TUI and CLI never echo secret values
 - **Passphrase strength**: New stores require 12+ chars with mixed case, digit, and symbol; confirmation prompt on creation

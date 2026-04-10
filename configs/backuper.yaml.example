@@ -41,6 +41,34 @@ targets:
       name: clickhouse-credentials
       key: admin-password
 
+  # Redis local
+  - name: local-redis
+    engine: redis
+    runtime: local
+    host: "localhost"                       # default: localhost
+    port: "6379"                            # default: 6379
+    secret_ref: redis_password
+
+  # Redis remote
+  - name: remote-redis
+    engine: redis
+    runtime: remote
+    host: "10.0.0.50"
+    port: "6379"
+    secret_ref: remote_redis_password
+
+  # Redis via Kubernetes pod exec
+  - name: k8s-redis
+    engine: redis
+    runtime: kubernetes
+    host: "localhost"                       # redis-cli connects inside the pod
+    port: "6379"
+    namespace: cache
+    pod_selector: "^redis"
+    k8s_secret:
+      name: redis-credentials
+      key: redis-password
+
 destinations:
   - name: remote-1
     type: rsync                         # local | scp | rsync | s3

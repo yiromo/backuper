@@ -1,11 +1,11 @@
 # backuper
 
-A keyboard-driven TUI for managing database backups — supports PostgreSQL and ClickHouse via Kubernetes pods or local/remote execution, with SCP/rsync/S3/local destinations, cron scheduling, and an age-encrypted secrets store.
+A keyboard-driven TUI for managing database backups — supports PostgreSQL, ClickHouse, and Redis via Kubernetes pods or local/remote execution, with SCP/rsync/S3/local destinations, cron scheduling, and an age-encrypted secrets store.
 
 ## Features
 
 - **Interactive TUI** — keyboard-driven interface (bubbletea)
-- **Engines** — PostgreSQL (`pg_dump`/`pg_dumpall`) or ClickHouse (`clickhouse-client`)
+- **Engines** — PostgreSQL (`pg_dump`/`pg_dumpall`), ClickHouse (`clickhouse-client`), or Redis (`redis-cli --rdb`)
 - **Runtimes** — local, remote (connect to external host), or Kubernetes pod exec
 - **Destinations** — local directory, SCP, rsync over SSH, or S3-compatible storage (AWS S3, Minio, etc.)
 - **Scheduling** — cron expressions with configurable retention (`keep_last`) and schedule-based directory organization
@@ -85,6 +85,13 @@ targets:
     db_name: trends
     secret_ref: ch-password
 
+  - name: cache-redis
+    engine: redis
+    runtime: local
+    host: "localhost"        # default: localhost
+    port: "6379"             # default: 6379
+    secret_ref: redis-password
+
 destinations:
   - name: nas
     type: rsync
@@ -130,22 +137,24 @@ notifications:
 
 Targets use `engine` (what database) and `runtime` (how to connect):
 
-**Engines**: `postgres`, `clickhouse`
+**Engines**: `postgres`, `clickhouse`, `redis`
 **Runtimes**: `local`, `remote`, `kubernetes`
 
 | Field | `engine` | `runtime` | Description |
 |---|---|---|---|
-| `db_user` | all | all | Required |
+| `db_user` | postgres, clickhouse | all | Required |
 | `db_name` | postgres | all | Optional; empty = `pg_dumpall` |
 | `db_name` | clickhouse | all | Required |
 | `secret_ref` | all | local/remote | Required |
 | `k8s_secret` | all | kubernetes | Optional; falls back to `secret_ref` |
-| `host` | clickhouse | local/remote | Required |
-| `port` | clickhouse | local/remote | Optional |
+| `host` | clickhouse, redis | local/remote | Required for clickhouse; default `localhost` for redis |
+| `port` | clickhouse, redis | local/remote | Optional (default `6379` for redis) |
 | `namespace` | all | kubernetes | Required |
 | `pod_selector` | all | kubernetes | Required (regex) |
 
 **ClickHouse backup format**: Schema via `SHOW CREATE TABLE` + data via `SELECT * FORMAT Native` per table, combined into a `.tar.gz` archive. Restore: extract tar, run `schema.sql`, then `INSERT INTO table FORMAT Native` per table.
+
+**Redis backup format**: RDB dump via `redis-cli --rdb`, producing a `.rdb` file. Restore: stop Redis, replace `dump.rdb` in the data directory, start Redis.
 
 ### Destination types
 

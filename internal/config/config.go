@@ -39,7 +39,7 @@ type NotificationConfig struct {
 
 type TargetConfig struct {
 	Name        string        `yaml:"name"`
-	Engine      string        `yaml:"engine"`                // "postgres" | "clickhouse"
+	Engine      string        `yaml:"engine"`                // "postgres" | "clickhouse" | "redis"
 	Runtime     string        `yaml:"runtime"`               // "local" | "kubernetes"
 	Namespace   string        `yaml:"namespace,omitempty"`   // runtime=kubernetes
 	PodSelector string        `yaml:"pod_selector,omitempty"` // runtime=kubernetes, regex
@@ -203,9 +203,9 @@ func (c *Config) Validate() error {
 		targetNames[t.Name] = true
 		// Validate engine.
 		switch t.Engine {
-		case "postgres", "clickhouse":
+		case "postgres", "clickhouse", "redis":
 		default:
-			return fmt.Errorf("target %q: unknown engine %q (must be postgres or clickhouse)", t.Name, t.Engine)
+			return fmt.Errorf("target %q: unknown engine %q (must be postgres, clickhouse, or redis)", t.Name, t.Engine)
 		}
 		// Validate runtime.
 		switch t.Runtime {
@@ -231,7 +231,7 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("target %q: host is required for clickhouse with %s runtime", t.Name, t.Runtime)
 			}
 		}
-		if t.DBUser == "" {
+		if t.DBUser == "" && t.Engine != "redis" {
 			return fmt.Errorf("target %q: db_user is required", t.Name)
 		}
 		if t.SecretRef == "" && t.K8sSecret == nil {
