@@ -16,6 +16,7 @@
 - **Secrets**: Age-encrypted store; values never displayed in the UI
 - **History**: SQLite log of every backup run with size, duration, and output
 - **Daemon**: Headless mode with encrypted passphrase for unattended operation
+- **HTTP API**: Optional REST API for health checks, resource discovery, run history, manual triggers, and log streaming (SSE)
 
 ### Architecture
 
@@ -42,7 +43,15 @@ internal/
     smtp.go                   - SMTP email notifier (STARTTLS, auth)
   backup/
     runner.go                 - Orchestrates dump → compress → transfer → retention → notify
-    history.go                - SQLite history tracking (modernc/sqlite)
+    history.go                - SQLite history tracking (modernc/sqlite), includes run_id for API tracking
+  agent/
+    agent.go                  - Daemon coordination layer (run tracking, log streaming, cancellation)
+    run_tracker.go            - ActiveRun tracking with thread-safe log buffer
+  api/
+    server.go                 - HTTP server setup, routing, ListenAndServe
+    handlers.go               - All HTTP endpoint handlers
+    responses.go              - JSON response types and helpers
+    middleware.go              - Request logging, panic recovery
   scheduler/                  - Cron-based scheduling (robfig/cron)
   secrets/
     store.go                  - Age-encrypted secrets (filippo.io/age)
@@ -53,7 +62,7 @@ internal/
 ## Building and Running
 
 ### Prerequisites
-- Go 1.22+
+- Go 1.25+
 - [age](https://github.com/FiloSottile/age) for secrets encryption
 
 ### Build
@@ -104,11 +113,29 @@ Default config path: `~/.config/backuper/config.yaml`
 
 See `configs/backuper.yaml.example` for a full example.
 
+### HTTP API (Daemon)
+
+When `api.enabled: true` in config, the daemon starts an HTTP server alongside the scheduler.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/healthz` | Deep health (scheduler + DB) |
+| GET | `/livez` | Liveness (process is up) |
+| GET | `/api/targets` | List configured targets |
+| GET | `/api/schedules` | List schedules with next-run times |
+| GET | `/api/history?target=&limit=` | Query run history |
+| GET | `/api/runs/{id}/log` | Get log for a run |
+| GET | `/api/runs/{id}/log/stream` | SSE stream for active run logs |
+| POST | `/api/run` | Trigger backup `{"target","destination"}` |
+| POST | `/api/stop` | Cancel running backup `{"run_id"}` |
+
+The `agent` package wraps the scheduler and runner, tracking active runs with UUIDs, buffering logs for SSE streaming, and supporting cancellation via context. The `api` package handles HTTP routing and JSON serialization.
+
 ## Technology Stack
 
 | Category | Technology |
 |---|---|
-| Language | Go 1.22 |
+| Language | Go 1.25 |
 | CLI Framework | [spf13/cobra](https://github.com/spf13/cobra) |
 | TUI Framework | [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) |
 | TUI Components | [bubbles](https://github.com/charmbracelet/bubbles), [lipgloss](https://github.com/charmbracelet/lipgloss) |
@@ -118,6 +145,7 @@ See `configs/backuper.yaml.example` for a full example.
 | Database | [modernc/sqlite](https://gitlab.com/cznic/sqlite) (pure-Go) |
 | Config | [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) |
 | S3 Storage | [minio/minio-go](https://github.com/minio/minio-go) v7 (S3-compatible storage) |
+| UUIDs | [google/uuid](https://github.com/google/uuid) (run tracking IDs) |
 
 ## Data Files
 

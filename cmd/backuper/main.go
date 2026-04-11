@@ -10,11 +10,14 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"filippo.io/age"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"backuper/internal/agent"
+	"backuper/internal/api"
 	"backuper/internal/backup"
 	"backuper/internal/config"
 	"backuper/internal/notify"
@@ -375,13 +378,35 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("registering schedules: %w", err)
 	}
 	sched.Start()
-	fmt.Fprintln(os.Stderr, "backuper daemon running. Press Ctrl+C to stop.")
+
+	var ag *agent.Agent
+	var apiSrv *api.Server
+	if globalCfg.API != nil && globalCfg.API.Enabled {
+		ag = agent.New(globalCfg, sched, globalHist, globalLog)
+		apiSrv = api.NewServer(ag, globalCfg.API, globalLog)
+		go func() {
+			if err := apiSrv.ListenAndServe(); err != nil {
+				globalLog.Error("api server error", "error", err)
+			}
+		}()
+		fmt.Fprintf(os.Stderr, "backuper daemon running (API %s). Press Ctrl+C to stop.\n", globalCfg.API.ListenAddr)
+	} else {
+		fmt.Fprintln(os.Stderr, "backuper daemon running. Press Ctrl+C to stop.")
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	fmt.Fprintln(os.Stderr, "Shutting down (waiting for running backups to finish)...")
+	if apiSrv != nil {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		apiSrv.Shutdown(shutdownCtx)
+		shutdownCancel()
+	}
+	if ag != nil {
+		ag.Close()
+	}
 	ctx := sched.Stop()
 	<-ctx.Done()
 	fmt.Fprintln(os.Stderr, "Done.")

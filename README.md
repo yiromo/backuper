@@ -338,6 +338,47 @@ BACKUPER_PASSPHRASE="your-passphrase" ./backuper daemon
 ./backuper --passphrase-file ~/.backuper_passphrase daemon
 ```
 
+### HTTP API
+
+Enable the API by adding to your config:
+
+```yaml
+api:
+  enabled: true
+  listen_addr: "0.0.0.0:8080"
+```
+
+Then start the daemon — the API server starts automatically:
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/healthz` | Deep health check (scheduler + DB) |
+| GET | `/livez` | Liveness probe |
+| GET | `/api/targets` | List configured targets |
+| GET | `/api/schedules` | List schedules with next-run times |
+| GET | `/api/history?target=&limit=` | Query run history |
+| GET | `/api/runs/{id}/log` | Get log for a run |
+| GET | `/api/runs/{id}/log/stream` | SSE stream for active run logs |
+| POST | `/api/run` | Trigger backup `{"target","destination"}` |
+| POST | `/api/stop` | Cancel running backup `{"run_id"}` |
+
+All responses use `{"ok": bool, "data": ..., "error": ...}`. Log streaming uses Server-Sent Events (SSE).
+
+Example:
+
+```bash
+# Check health
+curl http://localhost:8080/healthz
+
+# Trigger a backup
+curl -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"target":"local-pg","destination":"local-archive"}'
+
+# Stream logs for a running backup
+curl http://localhost:8080/api/runs/{run_id}/log/stream
+```
+
 ## CLI commands
 
 ```

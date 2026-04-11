@@ -14,6 +14,7 @@ import (
 
 type Record struct {
 	ID          int64
+	RunID       string
 	CreatedAt   time.Time
 	Target      string
 	Destination string
@@ -52,6 +53,7 @@ func OpenHistoryDB(path string) (*HistoryDB, error) {
 func migrate(db *sql.DB) error {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS history (
 		id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		run_id      TEXT NOT NULL DEFAULT '',
 		created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		target      TEXT NOT NULL,
 		destination TEXT NOT NULL,
@@ -62,13 +64,20 @@ func migrate(db *sql.DB) error {
 		log_output  TEXT NOT NULL DEFAULT '',
 		filename    TEXT NOT NULL DEFAULT ''
 	)`)
-	return err
+	if err != nil {
+		return err
+	}
+	// Migrate existing databases: add run_id column if missing.
+	_, _ = db.Exec(`ALTER TABLE history ADD COLUMN run_id TEXT NOT NULL DEFAULT ''`)
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_history_run_id ON history(run_id)`)
+	return nil
 }
 
 func (h *HistoryDB) Insert(ctx context.Context, r *Record) (int64, error) {
 	res, err := h.db.ExecContext(ctx,
-		`INSERT INTO history (created_at, target, destination, status, size_bytes, duration_ms, error_msg, log_output, filename)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO history (run_id, created_at, target, destination, status, size_bytes, duration_ms, error_msg, log_output, filename)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.RunID,
 		r.CreatedAt.UTC().Format(time.RFC3339),
 		r.Target, r.Destination, r.Status,
 		r.SizeBytes, r.DurationMs,
@@ -82,7 +91,7 @@ func (h *HistoryDB) Insert(ctx context.Context, r *Record) (int64, error) {
 }
 
 func (h *HistoryDB) Query(ctx context.Context, targetFilter string, limit int) ([]*Record, error) {
-	query := `SELECT id, created_at, target, destination, status, size_bytes, duration_ms, error_msg, log_output, filename
+	query := `SELECT id, run_id, created_at, target, destination, status, size_bytes, duration_ms, error_msg, log_output, filename
 	          FROM history`
 	var args []any
 	if targetFilter != "" {
@@ -100,12 +109,36 @@ func (h *HistoryDB) Query(ctx context.Context, targetFilter string, limit int) (
 	}
 	defer rows.Close()
 
+	return scanRecords(rows)
+}
+
+func (h *HistoryDB) GetByRunID(ctx context.Context, runID string) (*Record, error) {
+	row := h.db.QueryRowContext(ctx,
+		`SELECT id, run_id, created_at, target, destination, status, size_bytes, duration_ms, error_msg, log_output, filename
+		 FROM history WHERE run_id = ?`, runID)
+	var r Record
+	var createdAt string
+	if err := row.Scan(
+		&r.ID, &r.RunID, &createdAt, &r.Target, &r.Destination,
+		&r.Status, &r.SizeBytes, &r.DurationMs,
+		&r.ErrorMsg, &r.LogOutput, &r.Filename,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("querying run %q: %w", runID, err)
+	}
+	r.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+	return &r, nil
+}
+
+func scanRecords(rows *sql.Rows) ([]*Record, error) {
 	var records []*Record
 	for rows.Next() {
 		var r Record
 		var createdAt string
 		if err := rows.Scan(
-			&r.ID, &createdAt, &r.Target, &r.Destination,
+			&r.ID, &r.RunID, &createdAt, &r.Target, &r.Destination,
 			&r.Status, &r.SizeBytes, &r.DurationMs,
 			&r.ErrorMsg, &r.LogOutput, &r.Filename,
 		); err != nil {

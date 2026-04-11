@@ -187,6 +187,22 @@ notifications:
 #     compress: gzip
 #     retention:
 #       keep_last: 12
+
+# HTTP API for the daemon (optional, disabled by default)
+# api:
+#   enabled: true
+#   listen_addr: "0.0.0.0:8080"
+#
+# Endpoints:
+#   GET  /healthz                - Deep health check (scheduler + DB)
+#   GET  /livez                  - Liveness probe
+#   GET  /api/targets            - List configured targets
+#   GET  /api/schedules          - List schedules with next-run times
+#   GET  /api/history?target=&limit= - Query run history
+#   GET  /api/runs/{id}/log      - Get log for a run
+#   GET  /api/runs/{id}/log/stream   - SSE stream for active run logs
+#   POST /api/run                - Trigger backup {"target","destination"}
+#   POST /api/stop               - Cancel running backup {"run_id"}
 #
 #   - target: exampledb
 #     destination: local-archive

@@ -15,6 +15,12 @@ type Config struct {
 	Destinations  []DestinationConfig  `yaml:"destinations"`
 	Schedules     []ScheduleConfig     `yaml:"schedules"`
 	Notifications []NotificationConfig `yaml:"notifications,omitempty"`
+	API           *APIConfig           `yaml:"api,omitempty"`
+}
+
+type APIConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	ListenAddr string `yaml:"listen_addr"`
 }
 
 type NotificationConfig struct {
