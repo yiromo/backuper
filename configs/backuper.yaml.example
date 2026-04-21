@@ -19,6 +19,34 @@ targets:
     db_name: mydb                       # omit = pg_dumpall
     secret_ref: local_pg_creds
 
+  # PostgreSQL in Docker
+  - name: docker-pg
+    engine: postgres
+    runtime: docker
+    container_name: my-postgres         # Docker container name or ID
+    db_user: postgres
+    db_name: mydb
+    secret_ref: docker_pg_creds
+
+  # ClickHouse in Docker
+  # - name: docker-ch
+  #   engine: clickhouse
+  #   runtime: docker
+  #   container_name: my-clickhouse
+  #   db_user: default
+  #   db_name: analytics
+  #   host: "localhost"                    # optional, default: localhost
+  #   secret_ref: ch_password
+
+  # Redis in Docker
+  # - name: docker-redis
+  #   engine: redis
+  #   runtime: docker
+  #   container_name: my-redis
+  #   host: "localhost"
+  #   port: "6379"
+  #   secret_ref: redis_password
+
   # ClickHouse via local clickhouse-client
   - name: ch-example
     engine: clickhouse

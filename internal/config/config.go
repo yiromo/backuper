@@ -44,17 +44,18 @@ type NotificationConfig struct {
 }
 
 type TargetConfig struct {
-	Name        string        `yaml:"name"`
-	Engine      string        `yaml:"engine"`                // "postgres" | "clickhouse" | "redis"
-	Runtime     string        `yaml:"runtime"`               // "local" | "kubernetes"
-	Namespace   string        `yaml:"namespace,omitempty"`   // runtime=kubernetes
-	PodSelector string        `yaml:"pod_selector,omitempty"` // runtime=kubernetes, regex
-	DBUser      string        `yaml:"db_user"`
-	DBName      string        `yaml:"db_name,omitempty"` // postgres: omit = pg_dumpall; clickhouse: required
-	SecretRef   string        `yaml:"secret_ref,omitempty"`
-	K8sSecret   *K8sSecretRef `yaml:"k8s_secret,omitempty"`
-	Host        string        `yaml:"host,omitempty"` // clickhouse: server host
-	Port        string        `yaml:"port,omitempty"` // clickhouse: server port
+	Name          string        `yaml:"name"`
+	Engine        string        `yaml:"engine"`                 // "postgres" | "clickhouse" | "redis"
+	Runtime       string        `yaml:"runtime"`                // "local" | "remote" | "kubernetes" | "docker"
+	Namespace     string        `yaml:"namespace,omitempty"`    // runtime=kubernetes
+	PodSelector   string        `yaml:"pod_selector,omitempty"` // runtime=kubernetes, regex
+	ContainerName string        `yaml:"container_name,omitempty"` // runtime=docker
+	DBUser        string        `yaml:"db_user"`
+	DBName        string        `yaml:"db_name,omitempty"` // postgres: omit = pg_dumpall; clickhouse: required
+	SecretRef     string        `yaml:"secret_ref,omitempty"`
+	K8sSecret     *K8sSecretRef `yaml:"k8s_secret,omitempty"`
+	Host          string        `yaml:"host,omitempty"` // clickhouse: server host
+	Port          string        `yaml:"port,omitempty"` // clickhouse: server port
 }
 
 type K8sSecretRef struct {
@@ -215,9 +216,9 @@ func (c *Config) Validate() error {
 		}
 		// Validate runtime.
 		switch t.Runtime {
-		case "local", "remote", "kubernetes":
+		case "local", "remote", "kubernetes", "docker":
 		default:
-			return fmt.Errorf("target %q: unknown runtime %q (must be local, remote, or kubernetes)", t.Name, t.Runtime)
+			return fmt.Errorf("target %q: unknown runtime %q (must be local, remote, kubernetes, or docker)", t.Name, t.Runtime)
 		}
 		// Runtime-specific.
 		if t.Runtime == "kubernetes" {
@@ -228,12 +229,17 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("target %q: pod_selector required for kubernetes runtime", t.Name)
 			}
 		}
+		if t.Runtime == "docker" {
+			if t.ContainerName == "" {
+				return fmt.Errorf("target %q: container_name required for docker runtime", t.Name)
+			}
+		}
 		// Engine-specific.
 		if t.Engine == "clickhouse" {
 			if t.DBName == "" {
 				return fmt.Errorf("target %q: db_name is required for clickhouse engine", t.Name)
 			}
-			if t.Host == "" && t.Runtime != "kubernetes" {
+			if t.Host == "" && t.Runtime != "kubernetes" && t.Runtime != "docker" {
 				return fmt.Errorf("target %q: host is required for clickhouse with %s runtime", t.Name, t.Runtime)
 			}
 		}

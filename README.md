@@ -138,19 +138,20 @@ notifications:
 Targets use `engine` (what database) and `runtime` (how to connect):
 
 **Engines**: `postgres`, `clickhouse`, `redis`
-**Runtimes**: `local`, `remote`, `kubernetes`
+**Runtimes**: `local`, `remote`, `kubernetes`, `docker`
 
 | Field | `engine` | `runtime` | Description |
 |---|---|---|---|
 | `db_user` | postgres, clickhouse | all | Required |
 | `db_name` | postgres | all | Optional; empty = `pg_dumpall` |
 | `db_name` | clickhouse | all | Required |
-| `secret_ref` | all | local/remote | Required |
+| `secret_ref` | all | local/remote/docker | Required |
 | `k8s_secret` | all | kubernetes | Optional; falls back to `secret_ref` |
 | `host` | clickhouse, redis | local/remote | Required for clickhouse; default `localhost` for redis |
 | `port` | clickhouse, redis | local/remote | Optional (default `6379` for redis) |
 | `namespace` | all | kubernetes | Required |
 | `pod_selector` | all | kubernetes | Required (regex) |
+| `container_name` | all | docker | Required (Docker container name or ID) |
 
 **ClickHouse backup format**: Schema via `SHOW CREATE TABLE` + data via `SELECT * FORMAT Native` per table, combined into a `.tar.gz` archive. Restore: extract tar, run `schema.sql`, then `INSERT INTO table FORMAT Native` per table.
 

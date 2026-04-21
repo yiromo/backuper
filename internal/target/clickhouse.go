@@ -82,8 +82,11 @@ func (t *ClickHouseTarget) GetPassword(ctx context.Context, store secrets.Store)
 }
 
 func (t *ClickHouseTarget) Dump(ctx context.Context, w io.Writer, password string) error {
-	if !t.isLocal() {
+	if t.cfg.Runtime == "kubernetes" {
 		return t.dumpK8s(ctx, w, password)
+	}
+	if t.cfg.Runtime == "docker" {
+		return t.dumpDocker(ctx, w, password)
 	}
 	return t.dumpLocal(ctx, w, password)
 }
@@ -208,6 +211,42 @@ func (t *ClickHouseTarget) dumpK8s(ctx context.Context, w io.Writer, password st
 	})
 	if err != nil {
 		return fmt.Errorf("clickhouse k8s exec (stderr=%s): %w", errBuf.String(), err)
+	}
+	return nil
+}
+
+// dumpDocker executes the dump script inside a Docker container via docker exec.
+func (t *ClickHouseTarget) dumpDocker(ctx context.Context, w io.Writer, password string) error {
+	host := t.cfg.Host
+	if host == "" {
+		host = "localhost"
+	}
+
+	script := fmt.Sprintf(
+		`cd /tmp && rm -rf chdump && mkdir -p chdump && `+
+			`clickhouse-client --host=%s --user=%s --password=%s --port=%s `+
+			`--query="SELECT create_table_query FROM system.tables WHERE database = '%s'" > chdump/schema.sql && `+
+			`for t in $(clickhouse-client --host=%s --user=%s --password=%s --port=%s `+
+			`--query="SELECT name FROM system.tables WHERE database = '%s'"); do `+
+			`clickhouse-client --host=%s --user=%s --password=%s --port=%s `+
+			`--query="SELECT * FROM %s.$t FORMAT Native" > "chdump/$t.native"; `+
+			`done && tar cf - -C /tmp/chdump . && rm -rf /tmp/chdump`,
+		host, t.cfg.DBUser, password, t.portArg(),
+		t.cfg.DBName,
+		host, t.cfg.DBUser, password, t.portArg(),
+		t.cfg.DBName,
+		host, t.cfg.DBUser, password, t.portArg(),
+		t.cfg.DBName,
+	)
+
+	cmd := exec.CommandContext(ctx, "docker", "exec", t.cfg.ContainerName, "bash", "-c", script)
+	cmd.Stdout = w
+
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("docker exec clickhouse dump (stderr=%s): %w", errBuf.String(), err)
 	}
 	return nil
 }

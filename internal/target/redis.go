@@ -77,6 +77,9 @@ func (t *RedisTarget) Dump(ctx context.Context, w io.Writer, password string) er
 	if t.cfg.Runtime == "kubernetes" {
 		return t.dumpK8s(ctx, w, password)
 	}
+	if t.cfg.Runtime == "docker" {
+		return t.dumpDocker(ctx, w, password)
+	}
 	return t.dumpLocal(ctx, w, password)
 }
 
@@ -128,6 +131,25 @@ func (t *RedisTarget) dumpLocal(ctx context.Context, w io.Writer, password strin
 
 	if _, err := io.Copy(w, f); err != nil {
 		return fmt.Errorf("streaming rdb: %w", err)
+	}
+	return nil
+}
+
+// dumpDocker executes redis-cli inside a Docker container via docker exec.
+func (t *RedisTarget) dumpDocker(ctx context.Context, w io.Writer, password string) error {
+	script := fmt.Sprintf(
+		`redis-cli -h %s -p %s -a '%s' --no-auth-warning --rdb /tmp/backup.rdb && cat /tmp/backup.rdb && rm -f /tmp/backup.rdb`,
+		t.host(), t.port(), password,
+	)
+
+	cmd := exec.CommandContext(ctx, "docker", "exec", t.cfg.ContainerName, "bash", "-c", script)
+	cmd.Stdout = w
+
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("docker exec redis dump (stderr=%s): %w", errBuf.String(), err)
 	}
 	return nil
 }

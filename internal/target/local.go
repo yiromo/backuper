@@ -22,7 +22,7 @@ func newLocal(cfg *config.TargetConfig) *LocalTarget {
 
 func (t *LocalTarget) Name() string { return t.cfg.Name }
 func (t *LocalTarget) Engine() string   { return "postgres" }
-func (t *LocalTarget) Runtime() string  { return "local" }
+func (t *LocalTarget) Runtime() string  { return t.cfg.Runtime }
 func (t *LocalTarget) FileExt() string  { return ".sql" }
 
 func (t *LocalTarget) GetPassword(_ context.Context, store secrets.Store) (string, error) {
@@ -34,6 +34,13 @@ func (t *LocalTarget) GetPassword(_ context.Context, store secrets.Store) (strin
 
 // Dump runs pg_dumpall (or pg_dump if db_name is set) and streams output to w.
 func (t *LocalTarget) Dump(ctx context.Context, w io.Writer, password string) error {
+	if t.cfg.Runtime == "docker" {
+		return t.dumpDocker(ctx, w, password)
+	}
+	return t.dumpLocal(ctx, w, password)
+}
+
+func (t *LocalTarget) dumpLocal(ctx context.Context, w io.Writer, password string) error {
 	var cmd *exec.Cmd
 	if t.cfg.DBName == "" {
 		cmd = exec.CommandContext(ctx, "pg_dumpall", "-U", t.cfg.DBUser)
@@ -48,6 +55,25 @@ func (t *LocalTarget) Dump(ctx context.Context, w io.Writer, password string) er
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("pg_dump: %w (stderr: %s)", err, errBuf.String())
+	}
+	return nil
+}
+
+func (t *LocalTarget) dumpDocker(ctx context.Context, w io.Writer, password string) error {
+	var args []string
+	if t.cfg.DBName == "" {
+		args = []string{"exec", "-e", "PGPASSWORD=" + password, t.cfg.ContainerName, "pg_dumpall", "-U", t.cfg.DBUser}
+	} else {
+		args = []string{"exec", "-e", "PGPASSWORD=" + password, t.cfg.ContainerName, "pg_dump", "-U", t.cfg.DBUser, t.cfg.DBName}
+	}
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.Stdout = w
+
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("docker exec pg_dump: %w (stderr: %s)", err, errBuf.String())
 	}
 	return nil
 }
